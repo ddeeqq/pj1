@@ -283,5 +283,160 @@ class DBHelper:
             'new_prices': new_prices.to_dict('records')[0] if not new_prices.empty else {}
         }
 
+    def insert_recall_info(self, **kwargs):
+        """리콜 정보 등록"""
+        query = """
+        INSERT INTO recall_info (
+            model_id, recall_number, recall_date, recall_title, recall_reason,
+            defect_content, correction_method, production_period, affected_units,
+            target_quantity, corrected_quantity, correction_rate, severity_level,
+            recall_type, device_category, recall_status, detail_url, source, collected_date
+        ) VALUES (
+            %(model_id)s, %(recall_number)s, %(recall_date)s, %(recall_title)s, %(recall_reason)s,
+            %(defect_content)s, %(correction_method)s, %(production_period)s, %(affected_units)s,
+            %(target_quantity)s, %(corrected_quantity)s, %(correction_rate)s, %(severity_level)s,
+            %(recall_type)s, %(device_category)s, %(recall_status)s, %(detail_url)s, %(source)s, %(collected_date)s
+        )
+        ON DUPLICATE KEY UPDATE
+            recall_title=VALUES(recall_title),
+            recall_reason=VALUES(recall_reason),
+            affected_units=VALUES(affected_units),
+            correction_rate=VALUES(correction_rate),
+            updated_at=CURRENT_TIMESTAMP
+        """
+
+        from datetime import datetime
+        data = {
+            'model_id': kwargs.get('model_id'),
+            'recall_number': kwargs.get('recall_number'),
+            'recall_date': kwargs.get('recall_date'),
+            'recall_title': kwargs.get('recall_title', ''),
+            'recall_reason': kwargs.get('recall_reason', ''),
+            'defect_content': kwargs.get('defect_content', ''),
+            'correction_method': kwargs.get('correction_method', ''),
+            'production_period': kwargs.get('production_period', ''),
+            'affected_units': kwargs.get('affected_units', 0),
+            'target_quantity': kwargs.get('target_quantity', 0),
+            'corrected_quantity': kwargs.get('corrected_quantity', 0),
+            'correction_rate': kwargs.get('correction_rate', 0.0),
+            'severity_level': kwargs.get('severity_level', '알수없음'),
+            'recall_type': kwargs.get('recall_type', '안전'),
+            'device_category': kwargs.get('device_category', ''),
+            'recall_status': kwargs.get('recall_status', '진행중'),
+            'detail_url': kwargs.get('detail_url', ''),
+            'source': kwargs.get('source', 'car.go.kr'),
+            'collected_date': kwargs.get('collected_date', datetime.now().date())
+        }
+
+        return self.execute_insert(query, data)
+
+    def get_recall_statistics(self, manufacturer=None, model_name=None, days=365):
+        """리콜 통계 조회"""
+        base_query = """
+        SELECT 
+            cm.manufacturer,
+            cm.model_name,
+            COUNT(*) as total_recalls,
+            SUM(CASE WHEN ri.severity_level = '매우심각' THEN 1 ELSE 0 END) as critical_recalls,
+            SUM(CASE WHEN ri.severity_level = '심각' THEN 1 ELSE 0 END) as severe_recalls,
+            SUM(CASE WHEN ri.severity_level = '보통' THEN 1 ELSE 0 END) as moderate_recalls,
+            SUM(CASE WHEN ri.severity_level = '경미' THEN 1 ELSE 0 END) as minor_recalls,
+            SUM(ri.affected_units) as total_affected_units,
+            AVG(ri.correction_rate) as avg_correction_rate,
+            MAX(ri.recall_date) as last_recall_date
+        FROM recall_info ri
+        JOIN CarModel cm ON ri.model_id = cm.model_id
+        WHERE ri.recall_date >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
+        """
+
+        params = [days]
+
+        if manufacturer:
+            base_query += " AND cm.manufacturer = %s"
+            params.append(manufacturer)
+
+        if model_name:
+            base_query += " AND cm.model_name = %s"
+            params.append(model_name)
+
+        base_query += " GROUP BY cm.manufacturer, cm.model_name ORDER BY total_recalls DESC"
+
+        result = self.execute_query(base_query, tuple(params))
+
+        if result:
+            columns = ['manufacturer', 'model_name', 'total_recalls', 'critical_recalls',
+                      'severe_recalls', 'moderate_recalls', 'minor_recalls', 
+                      'total_affected_units', 'avg_correction_rate', 'last_recall_date']
+            return pd.DataFrame(result, columns=columns)
+        else:
+            return pd.DataFrame()
+
+    def insert_car_recall_check(self, car_number, recall_results):
+        """차량별 리콜 확인 결과 저장"""
+        for recall in recall_results:
+            query = """
+            INSERT INTO car_recall_history (
+                car_number, model_id, recall_status, check_date, notes
+            ) VALUES (
+                %(car_number)s, %(model_id)s, %(recall_status)s, %(check_date)s, %(notes)s
+            )
+            ON DUPLICATE KEY UPDATE
+                recall_status=VALUES(recall_status),
+                check_date=VALUES(check_date)
+            """
+
+            # 모델 ID 찾기
+            model_id = self.get_car_model_id(recall.get('manufacturer'), recall.get('model_name'))
+
+            from datetime import datetime
+            data = {
+                'car_number': car_number,
+                'model_id': model_id,
+                'recall_status': recall.get('recall_status', '확인필요'),
+                'check_date': recall.get('collected_date', datetime.now().date()),
+                'notes': recall.get('recall_reason', '')
+            }
+
+            self.execute_insert(query, data)
+
+    def insert_car_model(self, manufacturer, model_name, **kwargs):
+        """자동차 모델 추가"""
+        query = """
+        INSERT IGNORE INTO CarModel (manufacturer, model_name, release_year, segment, fuel_type)
+        VALUES (%s, %s, %s, %s, %s)
+        """
+        params = (
+            manufacturer, 
+            model_name, 
+            kwargs.get('release_year', 2024),
+            kwargs.get('segment', '일반'),
+            kwargs.get('fuel_type', '가솔린')
+        )
+        return self.execute_query(query, params, fetch=False)
+
+    def get_car_model_id(self, manufacturer, model_name):
+        """자동차 모델 ID 조회"""
+        query = "SELECT model_id FROM CarModel WHERE manufacturer = %s AND model_name = %s LIMIT 1"
+        result = self.execute_query(query, (manufacturer, model_name))
+        return result[0]['model_id'] if result else None
+
+    def execute_insert(self, query, data):
+        """INSERT 쿼리 실행"""
+        with self.get_db_connection() as connection:
+            cursor = connection.cursor()
+            try:
+                if isinstance(data, dict):
+                    # 딕셔너리인 경우 named parameter 사용
+                    cursor.execute(query, data)
+                else:
+                    # 튜플/리스트인 경우 positional parameter 사용  
+                    cursor.execute(query, data)
+                connection.commit()
+                return cursor.lastrowid
+            except Error as e:
+                logger.error(f"INSERT 쿼리 실행 오류: {e}")
+                connection.rollback()
+                raise
+
 # 싱글톤 패턴으로 인스턴스 생성
 db_helper = DBHelper()

@@ -2,16 +2,16 @@
 
 실제 시장 데이터를 기반으로 중고차와 신차의 가성비를 다각도로 비교 분석하여, 사용자가 최적의 구매 결정을 내릴 수 있도록 지원하는 웹 애플리케이션입니다.
 
-## ✨ 주요 기능
+##  주요 기능
 
-- **🤖 데이터 자동 수집**: 엔카, 자동차리콜센터 등의 데이터를 스케줄러를 통해 주기적으로 자동 수집
-- **📊 종합 가성비 분석**: 가격, 신뢰도, 인기도를 종합한 가성비 점수 모델링
-- **📈 미래 가격 예측**: 간단한 감가상각 모델을 이용한 미래 중고가 예측
-- **💸 총 소유비용 (TCO) 분석**: 구매가, 보험료, 유지비 등을 고려한 총 소유비용 계산
-- **⚖️ 대안 신차 추천**: 분석 중인 중고차 예산으로 구매 가능한 대안 신차 목록 제시
-- **🖥️ 인터랙티브 대시보드**: Streamlit 기반의 시각화 대시보드 및 데이터 관리 기능
+- ** 데이터 자동 수집**: 엔카, 자동차리콜센터 등의 데이터를 스케줄러를 통해 주기적으로 자동 수집
+- ** 종합 가성비 분석**: 가격, 신뢰도, 인기도를 종합한 가성비 점수 모델링
+- ** 미래 가격 예측**: 간단한 감가상각 모델을 이용한 미래 중고가 예측
+- ** 총 소유비용 (TCO) 분석**: 구매가, 보험료, 유지비 등을 고려한 총 소유비용 계산
+- ** 대안 신차 추천**: 분석 중인 중고차 예산으로 구매 가능한 대안 신차 목록 제시
+- ** 인터랙티브 대시보드**: Streamlit 기반의 시각화 대시보드 및 데이터 관리 기능
 
-## 🛠️ 기술 스택
+##  기술 스택
 
 - **Framework**: Streamlit
 - **Data Crawling**: Selenium, BeautifulSoup4, Requests
@@ -20,7 +20,7 @@
 - **Scheduling**: Schedule
 - **Visualization**: Plotly Express
 
-## 🚀 빠른 시작
+##  빠른 시작
 
 ### 1. 자동 설치 (권장)
 
@@ -77,7 +77,7 @@ streamlit run ui/streamlit_app.py
 python scheduler_enhanced.py
 ```
 
-## 📖 프로젝트 구조
+##  프로젝트 구조
 
 ```
 📁 pj1/
@@ -96,7 +96,7 @@ python scheduler_enhanced.py
 └── README.md            # 프로젝트 안내서
 ```
 
-## ⚙️ 주요 설정
+##  주요 설정
 
 ### 데이터베이스 설정
 
@@ -125,13 +125,13 @@ python scheduler_enhanced.py
 }
 ```
 
-## 🐛 문제 해결
+##  문제 해결
 
 - **MySQL 연결 실패**: `config/config.py`의 DB 설정이 올바른지, MySQL 서버가 실행 중인지, 방화벽에서 3306 포트가 열려 있는지 확인하세요.
 - **크롤링 실패**: `pip install --upgrade webdriver-manager`로 Chrome 드라이버를 업데이트하거나, 네트워크 연결 상태를 확인하세요.
 - **Streamlit 실행 오류**: `streamlit run ui/streamlit_app.py --server.port 8502`와 같이 다른 포트를 지정하여 실행해보세요.
 
-## 🤝 기여
+##  기여
 
 이슈 생성이나 Pull Request를 통해 자유롭게 기여할 수 있습니다.
 
@@ -141,11 +141,11 @@ python scheduler_enhanced.py
 4. 브랜치에 Push (`git push origin feature/AmazingFeature`)
 5. Pull Request 열기
 
-## 📄 라이선스
+##  라이선스
 
 이 프로젝트는 MIT 라이선스를 따릅니다. 자세한 내용은 `LICENSE` 파일을 참고하세요. (참고: 현재 프로젝트에 LICENSE 파일이 없습니다.)
 
-## 📧 연락처
+##  연락처
 
 - **GitHub Issues**: [프로젝트 이슈 페이지 링크]
-- **Email**: your-email@example.com
+- **Email**: jihanki3@naver.com

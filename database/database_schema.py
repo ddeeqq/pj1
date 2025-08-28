@@ -215,8 +215,85 @@ class DatabaseManager:
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
         
+        # 11. 리콜 정보 테이블
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS recall_info (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            model_id INT,
+            recall_number VARCHAR(50),
+            recall_date DATE,
+            recall_title VARCHAR(300),
+            recall_reason TEXT,
+            defect_content TEXT,
+            correction_method TEXT,
+            production_period VARCHAR(100),
+            affected_units INT DEFAULT 0,
+            target_quantity INT DEFAULT 0,
+            corrected_quantity INT DEFAULT 0,
+            correction_rate DECIMAL(5,2) DEFAULT 0.00,
+            severity_level VARCHAR(20) DEFAULT '알수없음',
+            recall_type VARCHAR(20) DEFAULT '안전',
+            device_category VARCHAR(50),
+            recall_status VARCHAR(20) DEFAULT '진행중',
+            detail_url TEXT,
+            source VARCHAR(50) DEFAULT 'car.go.kr',
+            collected_date DATE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (model_id) REFERENCES CarModel(model_id),
+            INDEX idx_recall_date (recall_date),
+            INDEX idx_model_severity (model_id, severity_level),
+            INDEX idx_collected_date (collected_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
+        # 12. 차량별 리콜 확인 이력
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS car_recall_history (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            car_number VARCHAR(20),
+            vin VARCHAR(50),
+            model_id INT,
+            recall_id INT,
+            check_date DATE,
+            recall_status VARCHAR(20),
+            correction_completed BOOLEAN DEFAULT FALSE,
+            correction_date DATE,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (model_id) REFERENCES CarModel(model_id),
+            FOREIGN KEY (recall_id) REFERENCES recall_info(id),
+            INDEX idx_car_number (car_number),
+            INDEX idx_check_date (check_date),
+            UNIQUE KEY unique_car_recall (car_number, recall_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
+        # 13. 리콜 통계 테이블
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS recall_statistics (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            manufacturer VARCHAR(50),
+            model_name VARCHAR(100),
+            year INT,
+            total_recalls INT DEFAULT 0,
+            critical_recalls INT DEFAULT 0,
+            severe_recalls INT DEFAULT 0,
+            moderate_recalls INT DEFAULT 0,
+            minor_recalls INT DEFAULT 0,
+            total_affected_units INT DEFAULT 0,
+            avg_correction_rate DECIMAL(5,2) DEFAULT 0.00,
+            last_recall_date DATE,
+            analysis_date DATE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY unique_model_year (manufacturer, model_name, year),
+            INDEX idx_manufacturer (manufacturer),
+            INDEX idx_analysis_date (analysis_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+        
         connection.commit()
-        print("✅ 모든 테이블 생성 완료!")
+        print("✅ 모든 테이블 (리콜 테이블 포함) 생성 완료!")
         
         cursor.close()
         connection.close()
