@@ -148,4 +148,4 @@ python scheduler_enhanced.py
 ## 📧 연락처
 
 - **GitHub Issues**: [프로젝트 이슈 페이지 링크]
-- **Email**: your-email@example.com
+- **Email**: jihanki3@naver.com
