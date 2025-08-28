@@ -1,0 +1,52 @@
+{
+  "scheduler": {
+    "max_retries": 3,
+    "delay_between_tasks": 30,
+    "enable_performance_monitoring": true,
+    "enable_data_validation": true
+  },
+  "email": {
+    "enabled": false,
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "email": "your_email@gmail.com",
+    "password": "your_app_password",
+    "recipients": [
+      "admin@yourcompany.com"
+    ],
+    "send_daily_reports": true,
+    "send_error_alerts": true
+  },
+  "resource_limits": {
+    "max_cpu_percent": 80,
+    "max_memory_percent": 85,
+    "max_disk_percent": 90,
+    "min_free_disk_gb": 5
+  },
+  "data_retention": {
+    "price_data_days": 30,
+    "log_data_days": 90,
+    "backup_keep_days": 14
+  },
+  "crawling": {
+    "encar": {
+      "enabled": true,
+      "max_pages_per_model": 5,
+      "delay_between_requests": 2
+    },
+    "recall": {
+      "enabled": true,
+      "check_last_days": 30
+    },
+    "public_data": {
+      "enabled": true,
+      "auto_download": false
+    }
+  },
+  "alerts": {
+    "data_collection_drop_threshold": 0.5,
+    "system_health_threshold": 70,
+    "critical_recall_keywords": ["화재", "브레이크", "에어백", "조향"],
+    "notify_on_new_critical_recalls": true
+  }
+}

@@ -1,169 +1,305 @@
 # 🚗 데이터 기반 중고차 vs 신차 가성비 분석 시스템
 
-## 📋 프로젝트 개요
-자동차 구매를 고려하는 사용자를 위한 데이터 기반 의사결정 지원 시스템입니다.
-공공 데이터, 시장 데이터, 신뢰도 데이터를 융합하여 객관적이고 종합적인 차량 정보를 제공합니다.
+실제 시장 데이터를 기반으로 중고차와 신차의 가성비를 비교 분석하여, 사용자가 최적의 구매 결정을 내릴 수 있도록 지원하는 웹 애플리케이션입니다.
 
-## 🎯 주요 기능
-- **전국 자동차 트렌드 분석**: 지역별, 연료별 등록 현황 시각화
-- **모델 상세 분석**: 선택 모델의 가격, 리콜, 인기도 종합 분석
-- **중고차 vs 신차 비교**: 예산에 맞는 최적의 선택 추천
-- **가성비 점수 산출**: 다각도 분석을 통한 객관적 점수 제공
-- **미래 가격 예측**: 감가상각 모델 기반 가격 예측
-- **총 소유비용(TCO) 분석**: 5년간 실제 소유 비용 계산
+## 🌟 주요 기능
 
-## 🏗️ 프로젝트 구조
+### 📊 데이터 기반 분석
+- **공공데이터**: 국토교통부 자동차 등록 현황
+- **시장데이터**: 엔카, K카 등에서 실시간 중고차 시세 수집
+- **신뢰성데이터**: 자동차리콜센터 리콜 이력 분석
+
+### ⚖️ 중고차 vs 신차 비교
+- 중고차 평균 시세 + 사용자 추가 예산으로 구매 가능한 신차 추천
+- 가성비 점수 계산 (가격, 신뢰도, 인기도 종합)
+- 총 소유비용(TCO) 분석
+
+### 📈 시각화 대시보드
+- Streamlit 기반 인터랙티브 웹 인터페이스
+- 실시간 차트 및 그래프
+- 지역별, 제조사별, 모델별 상세 통계
+
+### ⏰ 자동화 시스템
+- 스케줄러 기반 자동 데이터 수집
+- 시스템 모니터링 및 알림
+- 데이터 품질 검증 및 정리
+
+## 🏗️ 시스템 아키텍처
+
 ```
-pj1/
-├── config/              # 설정 파일
-│   └── config.py       # 프로젝트 전체 설정
-├── database/           # 데이터베이스 관련
-│   ├── database_schema.py  # DB 스키마 정의
-│   └── db_helper.py        # DB 헬퍼 함수
-├── crawlers/           # 데이터 수집 모듈
-│   ├── encar_crawler.py    # 엔카 크롤러
-│   ├── recall_crawler.py   # 리콜 정보 크롤러
-│   └── public_data_crawler.py  # 공공데이터 수집
-├── analyzers/          # 분석 모듈
-│   └── price_analyzer.py   # 가격 분석기
-├── ui/                 # 사용자 인터페이스
-│   └── streamlit_app.py    # Streamlit 웹 앱
-├── data/               # 데이터 저장 폴더
-├── logs/               # 로그 파일
-└── requirements.txt    # 필요 패키지 목록
+📁 프로젝트 구조
+├── 📂 analyzers/          # 데이터 분석 모듈
+│   └── price_analyzer.py  # 가격 분석 로직
+├── 📂 config/             # 설정 파일
+│   ├── config.py         # 메인 설정
+│   └── scheduler_config.json  # 스케줄러 설정
+├── 📂 crawlers/           # 데이터 수집 모듈
+│   ├── encar_crawler.py  # 엔카 크롤러
+│   ├── recall_crawler.py # 리콜 정보 크롤러
+│   └── public_data_crawler.py  # 공공데이터 크롤러
+├── 📂 database/           # 데이터베이스 관련
+│   ├── database_schema.py # DB 스키마 정의
+│   └── db_helper.py      # DB 헬퍼 함수
+├── 📂 ui/                # 사용자 인터페이스
+│   └── streamlit_app.py  # Streamlit 앱
+├── 📂 logs/              # 로그 파일
+├── 📂 data/              # 데이터 파일
+│   └── 📂 backup/        # 백업 파일
+├── scheduler_enhanced.py  # 향상된 스케줄러
+├── init_data.py          # 샘플 데이터 생성
+├── run.py               # 메인 실행 스크립트
+├── setup.py             # 설치 스크립트
+└── start.bat            # Windows 실행 파일
 ```
 
-## 🚀 설치 및 실행 방법
+## 🚀 빠른 시작
 
-### 1. 사전 요구사항
-- Python 3.9 이상
-- MySQL 8.0 이상
-- Chrome 브라우저 (웹 크롤링용)
+### 1. 자동 설치 (권장)
 
-### 2. 패키지 설치
 ```bash
-# 가상환경 생성 (권장)
-python -m venv venv
+# 1. 저장소 클론
+git clone [repository-url]
+cd pj1
 
-# 가상환경 활성화
-# Windows:
-venv\Scripts\activate
-# Mac/Linux:
-source venv/bin/activate
+# 2. 자동 설치 실행
+python setup.py
+```
 
-# 패키지 설치
+### 2. 수동 설치
+
+**요구사항**
+- Python 3.8+
+- MySQL 8.0+
+- Chrome 브라우저 (크롤링용)
+
+**설치 단계**
+
+```bash
+# 1. 의존성 설치
 pip install -r requirements.txt
+pip install psutil
+
+# 2. 데이터베이스 초기화
+python run.py init
+
+# 3. 샘플 데이터 생성 (선택)
+python init_data.py
+
+# 4. 시스템 테스트
+python run.py test
 ```
 
-### 3. 데이터베이스 설정
-```bash
-# MySQL 설정 수정
-# config/config.py 파일에서 DATABASE_CONFIG 수정
-DATABASE_CONFIG = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': 'your_password',  # 본인의 MySQL 비밀번호로 변경
-    'database': 'car_analysis_db',
-    'charset': 'utf8mb4'
-}
+### 3. 실행
 
-# 데이터베이스 초기화
-python database/database_schema.py
-```
-
-### 4. 애플리케이션 실행
+**웹 애플리케이션**
 ```bash
-# Streamlit 앱 실행
+python run.py run
+# 또는
 streamlit run ui/streamlit_app.py
 ```
 
-브라우저에서 자동으로 `http://localhost:8501` 페이지가 열립니다.
-
-## 💾 데이터 수집 방법
-
-### 공공데이터 (엑셀 파일)
-```python
-# public_data_crawler.py 실행
-from crawlers.public_data_crawler import PublicDataCrawler
-
-crawler = PublicDataCrawler()
-df = crawler.load_registration_data('path/to/excel_file.xlsx')
-crawler.save_to_database(df)
+**스케줄러 (백그라운드)**
+```bash
+python scheduler_enhanced.py
 ```
 
-### 중고차 가격 (웹 크롤링)
-```python
-# encar_crawler.py 실행
-from crawlers.encar_crawler import EncarCrawler
-
-crawler = EncarCrawler()
-car_list = [
-    {'manufacturer': '현대', 'model_name': '그랜저 IG'},
-    {'manufacturer': '기아', 'model_name': 'K5 DL3'},
-]
-crawler.crawl_and_save(car_list)
+**Windows 사용자**
+```bash
+# 배치 파일 실행
+start.bat
 ```
 
-### 리콜 정보
-```python
-# recall_crawler.py 실행
-from crawlers.recall_crawler import RecallCrawler
+## 📋 주요 명령어
 
-crawler = RecallCrawler()
-crawler.crawl_and_save(car_list)
+### 메인 실행 스크립트
+```bash
+# 웹앱 실행
+python run.py run
+
+# 데이터베이스 초기화
+python run.py init
+
+# 데이터 크롤링
+python run.py crawl
+
+# 시스템 테스트
+python run.py test
+```
+
+### 스케줄러
+```bash
+# 기본 실행
+python scheduler_enhanced.py
+
+# 특정 작업만 실행
+python scheduler_enhanced.py --task price
+python scheduler_enhanced.py --task recall
+python scheduler_enhanced.py --task health
+python scheduler_enhanced.py --task cleanup
+
+# 테스트 모드
+python scheduler_enhanced.py --test
+
+# 설정 파일 사용
+python scheduler_enhanced.py --config config/scheduler_config.json
 ```
 
 ## 📊 데이터베이스 스키마
 
 ### 주요 테이블
-1. **CarModel**: 자동차 모델 마스터 정보
-2. **RegistrationStats**: 지역별 등록 통계
-3. **UsedCarPrice**: 중고차 가격 정보
-4. **NewCarPrice**: 신차 가격 정보
-5. **RecallInfo**: 리콜 이력 정보
-6. **Demographics**: 선호 연령대 정보
-7. **FAQ**: 자주 묻는 질문
+- **CarModel**: 자동차 모델 마스터 정보
+- **UsedCarPrice**: 중고차 가격 정보
+- **NewCarPrice**: 신차 가격 정보
+- **RegistrationStats**: 지역별 등록 현황
+- **RecallInfo**: 리콜 정보
+- **CrawlingLog**: 크롤링 로그
 
-## 🔧 주요 설정 변경
+### ERD
+```mermaid
+graph TD
+    CarModel --> UsedCarPrice
+    CarModel --> NewCarPrice
+    CarModel --> RegistrationStats
+    CarModel --> RecallInfo
+    CarModel --> FAQ
+    CarModel --> Demographics
+```
 
-### 크롤링 딜레이 조정
+## ⏰ 스케줄러 작업
+
+### 자동 실행 작업
+- **매일 03:00**: 중고차 가격 업데이트
+- **매일 23:30**: 일일 리포트 생성
+- **매주 월요일 04:00**: 리콜 정보 업데이트
+- **매주 일요일 01:00**: 데이터베이스 백업
+- **매주 일요일 02:00**: 오래된 데이터 정리
+- **매월 1일 05:00**: 등록 현황 업데이트
+- **매시간**: 시스템 건강 상태 체크
+
+### 고급 기능
+- 🔄 실패 시 자동 재시도
+- 📈 시스템 리소스 모니터링
+- 📧 이메일 알림 (설정 시)
+- 📊 성능 통계 수집
+- 🔍 데이터 품질 검증
+
+## 🎛️ 설정
+
+### 데이터베이스 설정 (config/config.py)
 ```python
-# config/config.py
-CRAWLING_CONFIG = {
-    'encar': {
-        'delay': 2,  # 요청 간 지연 시간(초)
-    }
+DATABASE_CONFIG = {
+    'host': 'localhost',
+    'user': 'root',
+    'password': 'your_password',
+    'database': 'car_analysis_db',
+    'charset': 'utf8mb4'
 }
 ```
 
-### 분석 가중치 조정
-```python
-# config/config.py
-ANALYSIS_WEIGHTS = {
-    'price_weight': 0.4,      # 가격 가중치
-    'reliability_weight': 0.3, # 신뢰도 가중치
-    'popularity_weight': 0.2,  # 인기도 가중치
-    'age_weight': 0.1         # 연식 가중치
+### 스케줄러 설정 (config/scheduler_config.json)
+```json
+{
+  "scheduler": {
+    "max_retries": 3,
+    "enable_performance_monitoring": true
+  },
+  "email": {
+    "enabled": false,
+    "smtp_server": "smtp.gmail.com",
+    "email": "your_email@gmail.com"
+  }
 }
 ```
 
-## 📝 주의사항
-1. **웹 크롤링**: 대상 사이트의 robots.txt를 준수하고, 서버 부하를 고려하여 적절한 딜레이를 설정하세요.
-2. **데이터 저장**: 민감한 정보는 암호화하여 저장하고, 개인정보보호법을 준수하세요.
-3. **API 키**: 외부 API 사용 시 키는 환경 변수로 관리하세요.
+## 📱 사용자 인터페이스
 
-## 🤝 기여 방법
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
+### 메인 탭
+1. **📊 전국 자동차 트렌드**: 인기 모델, 지역별 현황
+2. **🔍 모델 상세 분석**: 특정 모델의 가격, 리콜, 가성비 분석
+3. **⚖️ 중고차 vs 신차 비교**: 핵심 기능, 구매 추천
+4. **📈 데이터 관리**: 크롤링 상태, 로그 확인
+
+### 주요 기능
+- 🎛️ 사이드바 필터 (제조사, 모델, 예산)
+- 📊 인터랙티브 차트 (Plotly)
+- 📋 상세 비교표
+- ⚠️ 리콜 정보 표시
+- 💰 가성비 점수 계산
+
+## 🔧 문제해결
+
+### 일반적인 문제
+
+**1. MySQL 연결 실패**
+```bash
+# MySQL 서비스 확인
+# Windows: services.msc에서 MySQL 서비스 상태 확인
+# 사용자 권한 확인
+
+# 방화벽 설정 확인
+# 3306 포트 열려있는지 확인
+```
+
+**2. 크롤링 실패**
+```bash
+# Chrome 드라이버 업데이트
+pip install --upgrade webdriver-manager
+
+# 네트워크 연결 확인
+# VPN 사용시 IP 차단 가능성 확인
+```
+
+**3. Streamlit 실행 오류**
+```bash
+# 포트 충돌 확인
+streamlit run ui/streamlit_app.py --server.port 8502
+
+# 캐시 정리
+streamlit cache clear
+```
+
+### 로그 확인
+- **앱 로그**: `logs/app_YYYYMMDD.log`
+- **스케줄러 로그**: `logs/scheduler_YYYYMMDD.log`
+- **일일 리포트**: `logs/daily_report_YYYYMMDD.json`
+
+## 🤝 기여
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
 ## 📄 라이선스
-This project is licensed under the MIT License.
 
-## 👨‍💻 개발자
-- 1인 메인 개발자
+이 프로젝트는 MIT 라이선스 하에 있습니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
 
-## 📞 문의
-프로젝트 관련 문의사항이 있으시면 이슈를 등록해주세요.
+## 📞 지원
+
+문제가 있거나 제안사항이 있으시면 이슈를 생성해주세요.
+
+### 주요 연락처
+- 📧 이메일: [your-email@example.com]
+- 💬 이슈: [GitHub Issues]
+
+---
+
+## 📈 향후 계획
+
+### v2.0 (예정)
+- [ ] AI 기반 가격 예측 모델
+- [ ] 사용자 계정 및 즐겨찾기 기능
+- [ ] 모바일 앱 개발
+- [ ] 실시간 알림 시스템
+
+### v1.5 (진행 중)
+- [x] 향상된 스케줄러
+- [x] 시스템 모니터링
+- [x] 데이터 백업 시스템
+- [ ] API 서버 개발
+- [ ] Docker 컨테이너화
+
+---
+
+**⭐ 이 프로젝트가 도움이 되셨다면 별표를 눌러주세요!**
