@@ -19,7 +19,7 @@ class ProjectSetup:
         
     def check_python_version(self):
         """Python 버전 확인"""
-        logger.info("🐍 Python 버전 확인 중...")
+        logger.info(" Python 버전 확인 중...")
         
         version_info = sys.version_info
         if version_info.major != 3 or version_info.minor < 8:
@@ -31,7 +31,7 @@ class ProjectSetup:
     
     def install_requirements(self):
         """필요한 패키지 설치"""
-        logger.info("📦 필요한 패키지를 설치합니다...")
+        logger.info(" 필요한 패키지를 설치합니다...")
         
         try:
             requirements_file = os.path.join(self.project_root, 'requirements.txt')
@@ -75,7 +75,7 @@ class ProjectSetup:
     
     def setup_mysql_database(self):
         """MySQL 데이터베이스 설정"""
-        logger.info("🗄️ MySQL 데이터베이스 설정을 시작합니다...")
+        logger.info(" MySQL 데이터베이스 설정을 시작합니다...")
         
         # 사용자로부터 MySQL 접속 정보 받기
         print("\n" + "="*50)
@@ -90,7 +90,7 @@ class ProjectSetup:
         
         # 연결 테스트
         try:
-            logger.info("🔍 MySQL 연결을 테스트합니다...")
+            logger.info(" MySQL 연결을 테스트합니다...")
             
             # 데이터베이스 없이 연결
             config = {
@@ -160,7 +160,7 @@ class ProjectSetup:
     
     def initialize_database_schema(self):
         """데이터베이스 스키마 초기화"""
-        logger.info("🏗️ 데이터베이스 스키마를 초기화합니다...")
+        logger.info(" 데이터베이스 스키마를 초기화합니다...")
         
         try:
             # database_schema.py 실행
@@ -176,10 +176,10 @@ class ProjectSetup:
     
     def create_sample_data(self):
         """샘플 데이터 생성"""
-        response = input("\n📊 샘플 데이터를 생성하시겠습니까? (y/n): ").strip().lower()
+        response = input("\n 샘플 데이터를 생성하시겠습니까? (y/n): ").strip().lower()
         
         if response == 'y':
-            logger.info("📊 샘플 데이터를 생성합니다...")
+            logger.info(" 샘플 데이터를 생성합니다...")
             
             try:
                 init_data_file = os.path.join(self.project_root, 'init_data.py')
@@ -254,7 +254,7 @@ class ProjectSetup:
     
     def run_setup(self):
         """전체 설치 프로세스 실행"""
-        print("🚗 중고차 vs 신차 가성비 분석 시스템 설치")
+        print(" 중고차 vs 신차 가성비 분석 시스템 설치")
         print("=" * 50)
         
         steps = [
@@ -293,7 +293,7 @@ class ProjectSetup:
             print("  - 스케줄러 실행: python scheduler_enhanced.py")
             print("  - 배치파일 실행: start.bat")
         else:
-            print("⚠️ 일부 단계가 실패했습니다. 위의 오류 메시지를 확인해주세요.")
+            print(" 일부 단계가 실패했습니다. 위의 오류 메시지를 확인해주세요.")
         
         input("\n계속하려면 Enter를 누르세요...")
 

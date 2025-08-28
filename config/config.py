@@ -17,30 +17,7 @@ DATABASE_CONFIG = {
     'charset': 'utf8mb4'
 }
 
-# 크롤링 설정
-CRAWLING_CONFIG = {
-    'encar': {
-        'base_url': 'http://www.encar.com',
-        'search_url': 'http://www.encar.com/dc/dc_carsearchlist.do',
-        'delay': 2,  # 요청 간 지연 시간(초)
-        'timeout': 30,
-        'max_retries': 3
-    },
-    'kcar': {
-        'base_url': 'https://www.kcar.com',
-        'search_url': 'https://www.kcar.com/bc/search',
-        'delay': 2,
-        'timeout': 30,
-        'max_retries': 3
-    },
-    'recall': {
-        'base_url': 'https://www.car.go.kr',
-        'search_url': 'https://www.car.go.kr/recall/recall_list.car',
-        'delay': 1,
-        'timeout': 30,
-        'max_retries': 3
-    }
-}
+
 
 # 데이터 파일 경로
 DATA_FILES = {
