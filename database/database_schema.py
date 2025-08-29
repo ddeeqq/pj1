@@ -202,7 +202,7 @@ class DatabaseManager:
         
         # 11. 리콜 정보 테이블
         cursor.execute("""
-        CREATE TABLE IF NOT EXISTS recall_info (
+        CREATE TABLE IF NOT EXISTS RecallInfo (
             id INT PRIMARY KEY AUTO_INCREMENT,
             model_id INT,
             recall_number VARCHAR(50),
@@ -247,7 +247,7 @@ class DatabaseManager:
             notes TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (model_id) REFERENCES CarModel(model_id),
-            FOREIGN KEY (recall_id) REFERENCES recall_info(id),
+            FOREIGN KEY (recall_id) REFERENCES RecallInfo(id),
             INDEX idx_car_number (car_number),
             INDEX idx_check_date (check_date),
             UNIQUE KEY unique_car_recall (car_number, recall_id)
@@ -283,15 +283,31 @@ class DatabaseManager:
         cursor.close()
         connection.close()
         
-    def insert_sample_data(self):
-        """샘플 데이터 삽입"""
+    def initialize_with_sample_data(self):
+        """데이터베이스 초기화 및 샘플 데이터 생성"""
+        self.create_database()
+        self.create_tables()
+        
+        # init_data.py의 기능 활용
+        try:
+            from init_data import DataInitializer
+            initializer = DataInitializer()
+            initializer.initialize_all()
+            print("✅ 데이터베이스 초기화 및 샘플 데이터 생성 완료")
+        except ImportError as e:
+            print(f"⚠️  init_data 모듈을 찾을 수 없습니다: {e}")
+            print("기본 샘플 데이터를 직접 삽입합니다.")
+            self._insert_basic_sample_data()
+    
+    def _insert_basic_sample_data(self):
+        """기본 샘플 데이터 삽입 (fallback)"""
         connection = self.get_connection()
         if not connection:
             return
             
         cursor = connection.cursor()
         
-        # 샘플 자동차 모델 데이터
+        # 기본 자동차 모델 데이터
         sample_models = [
             ('현대', '그랜저 IG', '중형', '가솔린', 2017),
             ('현대', '쏘나타 DN8', '준중형', '가솔린', 2019),
@@ -314,7 +330,7 @@ class DatabaseManager:
                 print(f"샘플 데이터 삽입 중 오류: {e}")
                 
         connection.commit()
-        print("✅ 샘플 데이터 삽입 완료!")
+        print("✅ 기본 샘플 데이터 삽입 완료!")
         
         cursor.close()
         connection.close()
@@ -338,9 +354,7 @@ class DatabaseManager:
         print("✅ 데이터베이스 삭제 완료")
         
         # 재생성
-        self.create_database()
-        self.create_tables()
-        self.insert_sample_data()
+        self.initialize_with_sample_data()
 
 # 실행 코드
 if __name__ == "__main__":
@@ -357,6 +371,6 @@ if __name__ == "__main__":
     db_manager.create_tables()
     
     # 샘플 데이터 삽입
-    db_manager.insert_sample_data()
+    db_manager.initialize_with_sample_data()
     
     print("\n✅ 데이터베이스 설정 완료!")

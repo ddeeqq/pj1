@@ -137,12 +137,6 @@ class DBHelper:
         params = (model_id, trim_name, base_price, options, total_price, promotion_discount)
         return self.execute_query(query, params, fetch=False)
         
-    def insert_recall_info_legacy(self, model_id, recall_date, recall_title, 
-                          recall_reason, affected_units=0, severity_level='보통', 
-                          fix_description=None):
-        """레거시 리콜 정보 삽입 함수 (사용하지 않음)"""
-        # 이 함수는 더 이상 사용되지 않습니다. insert_recall_info(**kwargs)를 사용하세요.
-        pass
         
     def insert_registration_stats(self, model_id, region, registration_date, 
                                  registration_count, cumulative_count=0):
@@ -191,7 +185,7 @@ class DBHelper:
         """리콜 정보 조회"""
         query = """
         SELECT ri.*, cm.manufacturer, cm.model_name 
-        FROM recall_info ri
+        FROM RecallInfo ri
         JOIN CarModel cm ON ri.model_id = cm.model_id
         WHERE 1=1
         """
@@ -279,7 +273,7 @@ class DBHelper:
     def insert_recall_info(self, **kwargs):
         """리콜 정보 등록"""
         query = """
-        INSERT INTO recall_info (
+        INSERT INTO RecallInfo (
             model_id, recall_number, recall_date, recall_title, recall_reason,
             defect_content, correction_method, production_period, affected_units,
             target_quantity, corrected_quantity, correction_rate, severity_level,
@@ -337,7 +331,7 @@ class DBHelper:
             SUM(ri.affected_units) as total_affected_units,
             AVG(ri.correction_rate) as avg_correction_rate,
             MAX(ri.recall_date) as last_recall_date
-        FROM recall_info ri
+        FROM RecallInfo ri
         JOIN CarModel cm ON ri.model_id = cm.model_id
         WHERE ri.recall_date >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
         """
