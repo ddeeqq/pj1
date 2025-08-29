@@ -105,7 +105,7 @@ class PriceAnalyzer:
             if not df.empty:
                 # 각 신차의 점수 계산
                 for idx, row in df.iterrows():
-                    model_id = db_helper.get_car_model_id(
+                    model_id = db_helper.get_or_insert_car_model(
                         row['manufacturer'], 
                         row['model_name']
                     )

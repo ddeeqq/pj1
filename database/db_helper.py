@@ -1,5 +1,5 @@
 """
-데이터베이스 연결 및 쿼리 헬퍼 함수
+Database connection and query helper functions
 """
 import mysql.connector
 from mysql.connector import Error
@@ -21,20 +21,20 @@ class DBHelper:
         
     @contextmanager
     def get_db_connection(self):
-        """컨텍스트 매니저로 데이터베이스 연결 관리"""
+        """Database connection management with context manager"""
         connection = None
         try:
             connection = mysql.connector.connect(**self.config)
             yield connection
         except Error as e:
-            logger.error(f"데이터베이스 연결 오류: {e}")
+            logger.error(f"Database connection error: {e}")
             raise
         finally:
             if connection and connection.is_connected():
                 connection.close()
                 
     def execute_query(self, query, params=None, fetch=True):
-        """단일 쿼리 실행"""
+        """Execute single query"""
         with self.get_db_connection() as connection:
             cursor = connection.cursor(dictionary=True)
             try:
@@ -48,14 +48,14 @@ class DBHelper:
                     return cursor.rowcount
                     
             except Error as e:
-                logger.error(f"쿼리 실행 오류: {e}")
+                logger.error(f"Query execution error: {e}")
                 connection.rollback()
                 raise
             finally:
                 cursor.close()
                 
     def execute_many(self, query, data_list):
-        """다중 쿼리 실행 (bulk insert)"""
+        """Execute multiple queries (bulk insert)"""
         with self.get_db_connection() as connection:
             cursor = connection.cursor()
             try:
@@ -63,36 +63,41 @@ class DBHelper:
                 connection.commit()
                 return cursor.rowcount
             except Error as e:
-                logger.error(f"다중 쿼리 실행 오류: {e}")
+                logger.error(f"Multiple query execution error: {e}")
                 connection.rollback()
                 raise
             finally:
                 cursor.close()
                 
     def fetch_dataframe(self, query, params=None):
-        """쿼리 결과를 pandas DataFrame으로 반환"""
+        """Return query results as pandas DataFrame"""
         with self.get_db_connection() as connection:
             try:
                 df = pd.read_sql(query, connection, params=params)
                 return df
             except Error as e:
-                logger.error(f"DataFrame 조회 오류: {e}")
+                logger.error(f"DataFrame query error: {e}")
                 raise
                 
     # === CRUD 함수들 ===
     
-    def insert_car_model(self, manufacturer, model_name, segment=None, fuel_type=None, release_year=None):
-        """자동차 모델 삽입"""
+    def insert_car_model(self, manufacturer, model_name, **kwargs):
+        """Insert car model (integrated version)"""
         query = """
-        INSERT INTO CarModel (manufacturer, model_name, segment, fuel_type, release_year)
+        INSERT IGNORE INTO CarModel (manufacturer, model_name, release_year, segment, fuel_type)
         VALUES (%s, %s, %s, %s, %s)
-        ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP
         """
-        params = (manufacturer, model_name, segment, fuel_type, release_year)
+        params = (
+            manufacturer, 
+            model_name, 
+            kwargs.get('release_year', 2024),
+            kwargs.get('segment', 'General'),
+            kwargs.get('fuel_type', 'Gasoline')
+        )
         return self.execute_query(query, params, fetch=False)
         
     def get_car_model_id(self, manufacturer, model_name, release_year=None):
-        """자동차 모델 ID 조회"""
+        """Get car model ID"""
         if release_year:
             query = """
             SELECT model_id FROM CarModel 
@@ -113,7 +118,7 @@ class DBHelper:
     def insert_used_car_price(self, model_id, year, mileage_range, avg_price, 
                             min_price=None, max_price=None, sample_count=0, 
                             data_source='manual', collected_date=None):
-        """중고차 가격 정보 삽입"""
+        """Insert used car price information"""
         query = """
         INSERT INTO UsedCarPrice 
         (model_id, year, mileage_range, avg_price, min_price, max_price, 
@@ -126,7 +131,7 @@ class DBHelper:
         
     def insert_new_car_price(self, model_id, trim_name, base_price, 
                            options=None, total_price=None, promotion_discount=0):
-        """신차 가격 정보 삽입"""
+        """Insert new car price information"""
         query = """
         INSERT INTO NewCarPrice 
         (model_id, trim_name, base_price, options, total_price, promotion_discount, 
@@ -140,7 +145,7 @@ class DBHelper:
         
     def insert_registration_stats(self, model_id, region, registration_date, 
                                  registration_count, cumulative_count=0):
-        """등록 통계 삽입"""
+        """Insert registration statistics"""
         query = """
         INSERT INTO RegistrationStats 
         (model_id, region, registration_date, registration_count, cumulative_count)
@@ -150,7 +155,7 @@ class DBHelper:
         return self.execute_query(query, params, fetch=False)
         
     def get_used_car_prices(self, model_id=None, year=None):
-        """중고차 가격 조회"""
+        """Query used car prices"""
         query = "SELECT * FROM UsedCarPrice WHERE 1=1"
         params = []
         
@@ -165,7 +170,7 @@ class DBHelper:
         return self.fetch_dataframe(query, params)
         
     def get_new_car_prices(self, model_id=None):
-        """신차 가격 조회"""
+        """Query new car prices"""
         query = """
         SELECT ncp.*, cm.manufacturer, cm.model_name 
         FROM NewCarPrice ncp
@@ -182,7 +187,7 @@ class DBHelper:
         return self.fetch_dataframe(query, params)
         
     def get_recall_info(self, model_id=None):
-        """리콜 정보 조회"""
+        """Query recall information"""
         query = """
         SELECT ri.*, cm.manufacturer, cm.model_name 
         FROM RecallInfo ri
@@ -199,7 +204,7 @@ class DBHelper:
         return self.fetch_dataframe(query, params)
         
     def get_registration_stats(self, model_id=None, region=None, start_date=None, end_date=None):
-        """등록 통계 조회"""
+        """Query registration statistics"""
         query = """
         SELECT rs.*, cm.manufacturer, cm.model_name
         FROM RegistrationStats rs
@@ -225,7 +230,7 @@ class DBHelper:
         return self.fetch_dataframe(query, params)
         
     def get_car_models(self, manufacturer=None):
-        """자동차 모델 목록 조회"""
+        """Query car model list"""
         query = "SELECT * FROM CarModel WHERE 1=1"
         params = []
         
@@ -237,7 +242,7 @@ class DBHelper:
         return self.fetch_dataframe(query, params)
         
     def update_crawling_log(self, source, status, records_collected=0, error_message=None):
-        """크롤링 로그 업데이트"""
+        """Update crawling log"""
         query = """
         INSERT INTO CrawlingLog (source, status, records_collected, error_message)
         VALUES (%s, %s, %s, %s)
@@ -246,7 +251,7 @@ class DBHelper:
         return self.execute_query(query, params, fetch=False)
         
     def get_latest_prices_comparison(self, model_id):
-        """특정 모델의 최신 중고차/신차 가격 비교 데이터"""
+        """Latest used/new car price comparison data for specific model"""
         # 중고차 최신 평균가
         used_query = """
         SELECT AVG(avg_price) as used_avg_price, MIN(min_price) as used_min_price, 
@@ -271,7 +276,7 @@ class DBHelper:
         }
 
     def insert_recall_info(self, **kwargs):
-        """리콜 정보 등록"""
+        """Register recall information"""
         query = """
         INSERT INTO RecallInfo (
             model_id, recall_number, recall_date, recall_title, recall_reason,
@@ -306,10 +311,10 @@ class DBHelper:
             'target_quantity': kwargs.get('target_quantity', 0),
             'corrected_quantity': kwargs.get('corrected_quantity', 0),
             'correction_rate': kwargs.get('correction_rate', 0.0),
-            'severity_level': kwargs.get('severity_level', '알수없음'),
-            'recall_type': kwargs.get('recall_type', '안전'),
+            'severity_level': kwargs.get('severity_level', 'Unknown'),
+            'recall_type': kwargs.get('recall_type', 'Safety'),
             'device_category': kwargs.get('device_category', ''),
-            'recall_status': kwargs.get('recall_status', '진행중'),
+            'recall_status': kwargs.get('recall_status', 'In Progress'),
             'detail_url': kwargs.get('detail_url', ''),
             'source': kwargs.get('source', 'car.go.kr'),
             'collected_date': kwargs.get('collected_date', datetime.now().date())
@@ -318,16 +323,16 @@ class DBHelper:
         return self.execute_insert(query, data)
 
     def get_recall_statistics(self, manufacturer=None, model_name=None, days=365):
-        """리콜 통계 조회"""
+        """Query recall statistics"""
         base_query = """
         SELECT 
             cm.manufacturer,
             cm.model_name,
             COUNT(*) as total_recalls,
-            SUM(CASE WHEN ri.severity_level = '매우심각' THEN 1 ELSE 0 END) as critical_recalls,
-            SUM(CASE WHEN ri.severity_level = '심각' THEN 1 ELSE 0 END) as severe_recalls,
-            SUM(CASE WHEN ri.severity_level = '보통' THEN 1 ELSE 0 END) as moderate_recalls,
-            SUM(CASE WHEN ri.severity_level = '경미' THEN 1 ELSE 0 END) as minor_recalls,
+            SUM(CASE WHEN ri.severity_level = 'Very Serious' THEN 1 ELSE 0 END) as critical_recalls,
+            SUM(CASE WHEN ri.severity_level = 'Serious' THEN 1 ELSE 0 END) as severe_recalls,
+            SUM(CASE WHEN ri.severity_level = 'Moderate' THEN 1 ELSE 0 END) as moderate_recalls,
+            SUM(CASE WHEN ri.severity_level = 'Minor' THEN 1 ELSE 0 END) as minor_recalls,
             SUM(ri.affected_units) as total_affected_units,
             AVG(ri.correction_rate) as avg_correction_rate,
             MAX(ri.recall_date) as last_recall_date
@@ -359,7 +364,7 @@ class DBHelper:
             return pd.DataFrame()
 
     def insert_car_recall_check(self, car_number, recall_results):
-        """차량별 리콜 확인 결과 저장"""
+        """Save recall check results by vehicle"""
         for recall in recall_results:
             query = """
             INSERT INTO car_recall_history (
@@ -373,44 +378,27 @@ class DBHelper:
             """
 
             # 모델 ID 찾기
-            model_id = self.get_car_model_id(recall.get('manufacturer'), recall.get('model_name'))
+            model_id = self.get_or_insert_car_model(recall.get('manufacturer'), recall.get('model_name'))
 
             from datetime import datetime
             data = {
                 'car_number': car_number,
                 'model_id': model_id,
-                'recall_status': recall.get('recall_status', '확인필요'),
+                'recall_status': recall.get('recall_status', 'Check Required'),
                 'check_date': recall.get('collected_date', datetime.now().date()),
                 'notes': recall.get('recall_reason', '')
             }
 
             self.execute_insert(query, data)
 
-    def insert_car_model(self, manufacturer, model_name, **kwargs):
-        """자동차 모델 추가"""
-        query = """
-        INSERT IGNORE INTO CarModel (manufacturer, model_name, release_year, segment, fuel_type)
-        VALUES (%s, %s, %s, %s, %s)
-        """
-        params = (
-            manufacturer, 
-            model_name, 
-            kwargs.get('release_year', 2024),
-            kwargs.get('segment', '일반'),
-            kwargs.get('fuel_type', '가솔린')
-        )
-        return self.execute_query(query, params, fetch=False)
 
-    def get_car_model_id(self, manufacturer, model_name):
-        """자동차 모델 ID 조회"""
-        query = "SELECT model_id FROM CarModel WHERE manufacturer = %s AND model_name = %s LIMIT 1"
-        result = self.execute_query(query, (manufacturer, model_name))
-        return result[0]['model_id'] if result else None
     
     def get_or_insert_car_model(self, manufacturer, model_name, fuel_type=None, **kwargs):
-        """자동차 모델 조회 또는 삽입"""
+        """Query or insert car model"""
         # 먼저 모델 ID 조회 시도
-        model_id = self.get_car_model_id(manufacturer, model_name)
+        query = "SELECT model_id FROM CarModel WHERE manufacturer = %s AND model_name = %s LIMIT 1"
+        result = self.execute_query(query, (manufacturer, model_name))
+        model_id = result[0]['model_id'] if result else None
         
         # 모델이 존재하지 않으면 새로 삽입
         if not model_id:
@@ -421,12 +409,13 @@ class DBHelper:
                 **kwargs
             )
             # 다시 조회하여 ID 반환
-            model_id = self.get_car_model_id(manufacturer, model_name)
+            result = self.execute_query(query, (manufacturer, model_name))
+            model_id = result[0]['model_id'] if result else None
         
         return model_id
 
     def execute_insert(self, query, data):
-        """INSERT 쿼리 실행"""
+        """Execute INSERT query"""
         with self.get_db_connection() as connection:
             cursor = connection.cursor()
             try:
@@ -439,7 +428,7 @@ class DBHelper:
                 connection.commit()
                 return cursor.lastrowid
             except Error as e:
-                logger.error(f"INSERT 쿼리 실행 오류: {e}")
+                logger.error(f"INSERT query execution error: {e}")
                 connection.rollback()
                 raise
 

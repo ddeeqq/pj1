@@ -42,7 +42,11 @@ DATABASE_CONFIG = {
     'user': get_env_var('DB_USER', 'root'),
     'password': get_env_var('DB_PASSWORD', 'your_password'),
     'database': get_env_var('DB_NAME', 'car_analysis_db'),
-    'charset': 'utf8mb4'
+    'charset': 'utf8',
+    'auth_plugin': 'mysql_native_password',
+    'connection_timeout': 60,
+    'autocommit': True,
+    'pool_reset_session': False
 }
 
 

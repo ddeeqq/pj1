@@ -15,9 +15,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.config import STREAMLIT_CONFIG, CAR_MANUFACTURERS, POPULAR_MODELS
 from database.db_helper import db_helper
 from analyzers.price_analyzer import PriceAnalyzer
-from crawlers.public_data_crawler import PublicDataCrawler
-from crawlers.encar_crawler import EncarCrawler
-from crawlers.recall_crawler import RecallCrawler
+# from crawlers.public_data_crawler import PublicDataCrawler
+# from crawlers.encar_crawler import EncarCrawler
+# from crawlers.recall_crawler import RecallCrawler
 
 # 페이지 설정
 st.set_page_config(
@@ -66,7 +66,7 @@ def get_crawling_logs(limit=10):
 
 # --- UI 컴포넌트 ---
 def setup_sidebar():
-    st.sidebar.header("🔍 검색 필터")
+    st.sidebar.header(" 검색 필터")
     manufacturer = st.sidebar.selectbox("제조사 선택", options=['전체'] + CAR_MANUFACTURERS)
     
     model_options = ['전체']
@@ -74,10 +74,10 @@ def setup_sidebar():
         model_options.extend(POPULAR_MODELS[manufacturer])
     model = st.sidebar.selectbox("모델 선택", options=model_options)
     
-    st.sidebar.header("💰 예산 설정")
+    st.sidebar.header(" 예산 설정")
     budget = st.sidebar.slider("추가 예산 (만원)", 0, 2000, 500, 100)
     
-    st.sidebar.header("⚙️ 분석 옵션")
+    st.sidebar.header(" 분석 옵션")
     show_options = {
         'recall': st.sidebar.checkbox("리콜 정보 표시", True),
         'prediction': st.sidebar.checkbox("가격 예측 표시", True),
@@ -86,7 +86,7 @@ def setup_sidebar():
     return {'manufacturer': manufacturer, 'model': model, 'additional_budget': budget, 'options': show_options}
 
 def show_data_management():
-    st.header("📈 데이터 관리")
+    st.header(" 데이터 관리")
     st.info("데이터를 수동으로 업데이트하고 최신 상태를 확인합니다.")
 
     def run_task(task_function, success_message, error_message):
@@ -104,39 +104,42 @@ def show_data_management():
         st.error(f"설정 파일을 읽는 데 실패했습니다: {e}")
         return
 
-    st.subheader("🔄 데이터 업데이트 실행")
+    st.subheader(" 데이터 업데이트 실행")
     col1, col2, col3 = st.columns(3)
     with col1:
-        if st.button("📊 공공데이터 업데이트", use_container_width=True):
-            with st.spinner("엑셀 파일 처리 및 DB 저장 중..."):
-                def task():
-                    crawler = PublicDataCrawler(config.get('public_data', {}))
-                    df = crawler.load_registration_data()
-                    if not df.empty:
-                        crawler.save_to_database(df)
-                run_task(task, "공공데이터 업데이트 완료!", "공공데이터 처리 실패")
+        # if st.button(" 공공데이터 업데이트", use_container_width=True):
+        #     with st.spinner("엑셀 파일 처리 및 DB 저장 중..."):
+        #         def task():
+        #             crawler = PublicDataCrawler(config.get('public_data', {}))
+        #             df = crawler.load_registration_data()
+        #             if not df.empty:
+        #                 crawler.save_to_database(df)
+        #         run_task(task, "공공데이터 업데이트 완료!", "공공데이터 처리 실패")
+        st.info(" 공공데이터 크롤링 기능 (일시 비활성화)")
 
     with col2:
-        if st.button("🚗 중고차 가격 업데이트", use_container_width=True):
-            with st.spinner("인기 모델의 중고차 가격 수집 중..."):
-                def task():
-                    crawler = EncarCrawler(config.get('encar', {}))
-                    car_list = [{'manufacturer': m, 'model_name': models[0]} for m, models in POPULAR_MODELS.items()]
-                    crawler.crawl_and_save(car_list)
-                run_task(task, "중고차 가격 업데이트 완료!", "중고차 가격 수집 실패")
+        # if st.button(" 중고차 가격 업데이트", use_container_width=True):
+        #     with st.spinner("인기 모델의 중고차 가격 수집 중..."):
+        #         def task():
+        #             crawler = EncarCrawler(config.get('encar', {}))
+        #             car_list = [{'manufacturer': m, 'model_name': models[0]} for m, models in POPULAR_MODELS.items()]
+        #             crawler.crawl_and_save(car_list)
+        #         run_task(task, "중고차 가격 업데이트 완료!", "중고차 가격 수집 실패")
+        st.info(" 중고차 가격 크롤링 기능 (일시 비활성화)")
 
     with col3:
-        if st.button("⚠️ 리콜 정보 업데이트", use_container_width=True):
-            with st.spinner("전체 모델 리콜 정보 수집 중..."):
-                def task():
-                    crawler = RecallCrawler(config.get('recall', {}))
-                    models_df = db_helper.get_car_models()
-                    car_list = models_df.to_dict('records')
-                    crawler.crawl_and_save(car_list)
-                run_task(task, "리콜 정보 업데이트 완료!", "리콜 정보 수집 실패")
+        # if st.button(" 리콜 정보 업데이트", use_container_width=True):
+        #     with st.spinner("전체 모델 리콜 정보 수집 중..."):
+        #         def task():
+        #             crawler = RecallCrawler(config.get('recall', {}))
+        #             models_df = db_helper.get_car_models()
+        #             car_list = models_df.to_dict('records')
+        #             crawler.crawl_and_save(car_list)
+        #         run_task(task, "리콜 정보 업데이트 완료!", "리콜 정보 수집 실패")
+        st.info(" 리콜 정보 크롤링 기능 (일시 비활성화)")
 
     st.markdown("---")
-    st.subheader("📝 최근 크롤링 로그")
+    st.subheader(" 최근 크롤링 로그")
     try:
         with st.spinner("로그 데이터 로딩 중..."):
             log_df = get_crawling_logs(10)
@@ -150,7 +153,7 @@ def show_data_management():
 
     # 캐시 관리 섹션
     st.markdown("---")
-    st.subheader("🗄️ 캐시 관리")
+    st.subheader(" 캐시 관리")
     col1, col2 = st.columns(2)
     with col1:
         if st.button("캐시 초기화", type="secondary"):
@@ -172,10 +175,10 @@ def main():
     st.title(STREAMLIT_CONFIG.get('page_title', '차량 분석 시스템'))
     filters = setup_sidebar()
     
-    tab1, tab2, tab3 = st.tabs(["📊 전국 자동차 트렌드", "🔍 모델 상세 분석", "📈 데이터 관리"])
+    tab1, tab2, tab3 = st.tabs([" 전국 자동차 트렌드", "🔍 모델 상세 분석", "📈 데이터 관리"])
     
     with tab1:
-        st.header("📊 전국 자동차 트렌드 대시보드")
+        st.header(" 전국 자동차 트렌드 대시보드")
         
         with st.spinner("데이터 로딩 중..."):
             popular_df = get_popular_models_data(10)
@@ -194,7 +197,7 @@ def main():
                 st.plotly_chart(fig, use_container_width=True)
             
             with col2:
-                st.subheader("📈 상위 5개 모델")
+                st.subheader(" 상위 5개 모델")
                 for idx, row in popular_df.head().iterrows():
                     st.metric(
                         f"{row['manufacturer']} {row['model_name']}",
@@ -204,7 +207,7 @@ def main():
             st.info("인기 모델 데이터가 없습니다.")
 
     with tab2:
-        st.header("🔍 모델 상세 분석")
+        st.header(" 모델 상세 분석")
         if filters['manufacturer'] != '전체' and filters['model'] != '전체':
             with st.spinner("모델 분석 중..."):
                 model_id = get_car_model_id_cached(filters['manufacturer'], filters['model'])
@@ -229,7 +232,7 @@ def main():
                     with st.spinner("가격 데이터 로딩 중..."):
                         price_data = get_latest_prices_comparison(model_id)
                         if price_data:
-                            st.subheader("💰 가격 비교 분석")
+                            st.subheader(" 가격 비교 분석")
                             st.dataframe(price_data, use_container_width=True)
             else:
                 st.warning("선택한 모델의 데이터가 없습니다.")

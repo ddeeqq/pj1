@@ -20,13 +20,13 @@ class DatabaseManager:
             cursor = connection.cursor()
             
             cursor.execute(f"CREATE DATABASE IF NOT EXISTS {self.database_name} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
-            print(f"✅ 데이터베이스 '{self.database_name}' 생성/확인 완료")
+            print(f"SUCCESS: 데이터베이스 '{self.database_name}' 생성/확인 완료")
             
             cursor.close()
             connection.close()
             
         except Error as e:
-            print(f"❌ 데이터베이스 생성 오류: {e}")
+            print(f"ERROR: 데이터베이스 생성 오류: {e}")
             
     def get_connection(self):
         """데이터베이스 연결 반환"""
@@ -34,7 +34,7 @@ class DatabaseManager:
             self.config['database'] = self.database_name
             return mysql.connector.connect(**DATABASE_CONFIG)
         except Error as e:
-            print(f"❌ 연결 오류: {e}")
+            print(f"ERROR: 연결 오류: {e}")
             return None
             
     def create_tables(self):
@@ -278,7 +278,7 @@ class DatabaseManager:
         """)
         
         connection.commit()
-        print("✅ 모든 테이블 (리콜 테이블 포함) 생성 완료!")
+        print("SUCCESS: 모든 테이블 (리콜 테이블 포함) 생성 완료!")
         
         cursor.close()
         connection.close()
@@ -293,9 +293,9 @@ class DatabaseManager:
             from init_data import DataInitializer
             initializer = DataInitializer()
             initializer.initialize_all()
-            print("✅ 데이터베이스 초기화 및 샘플 데이터 생성 완료")
+            print("SUCCESS: 데이터베이스 초기화 및 샘플 데이터 생성 완료")
         except ImportError as e:
-            print(f"⚠️  init_data 모듈을 찾을 수 없습니다: {e}")
+            print(f"WARNING: init_data 모듈을 찾을 수 없습니다: {e}")
             print("기본 샘플 데이터를 직접 삽입합니다.")
             self._insert_basic_sample_data()
     
@@ -330,14 +330,14 @@ class DatabaseManager:
                 print(f"샘플 데이터 삽입 중 오류: {e}")
                 
         connection.commit()
-        print("✅ 기본 샘플 데이터 삽입 완료!")
+        print("SUCCESS: 기본 샘플 데이터 삽입 완료!")
         
         cursor.close()
         connection.close()
 
     def reset_database(self):
         """데이터베이스 초기화 (주의: 모든 데이터 삭제)"""
-        response = input("⚠️  경고: 모든 데이터가 삭제됩니다. 계속하시겠습니까? (yes/no): ")
+        response = input("WARNING: 모든 데이터가 삭제됩니다. 계속하시겠습니까? (yes/no): ")
         if response.lower() != 'yes':
             print("초기화 취소됨")
             return
@@ -351,7 +351,7 @@ class DatabaseManager:
         cursor.close()
         connection.close()
         
-        print("✅ 데이터베이스 삭제 완료")
+        print("SUCCESS: 데이터베이스 삭제 완료")
         
         # 재생성
         self.initialize_with_sample_data()
@@ -361,7 +361,7 @@ if __name__ == "__main__":
     db_manager = DatabaseManager()
     
     print("=" * 50)
-    print("🚗 중고차 vs 신차 분석 시스템 - 데이터베이스 설정")
+    print("=== 중고차 vs 신차 분석 시스템 - 데이터베이스 설정 ===")
     print("=" * 50)
     
     # 데이터베이스 생성
@@ -373,4 +373,4 @@ if __name__ == "__main__":
     # 샘플 데이터 삽입
     db_manager.initialize_with_sample_data()
     
-    print("\n✅ 데이터베이스 설정 완료!")
+    print("\nSUCCESS: 데이터베이스 설정 완룜!")

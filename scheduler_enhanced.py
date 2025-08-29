@@ -1,5 +1,5 @@
 """
-데이터 수집 자동 스케줄러 (통합 버전)
+Automated Data Collection Scheduler (Integrated Version)
 """
 import schedule
 import time
@@ -14,12 +14,12 @@ from email.mime.text import MimeText
 from email.mime.multipart import MimeMultipart
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from crawlers.encar_crawler import EncarCrawler
-from crawlers.recall_crawler import RecallCrawler
-from crawlers.public_data_crawler import PublicDataCrawler
+# from crawlers.encar_crawler import EncarCrawler
+# from crawlers.recall_crawler import RecallCrawler
+# from crawlers.public_data_crawler import PublicDataCrawler
 from config.config import POPULAR_MODELS
 
-# 로깅 설정
+# Logging configuration
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -43,12 +43,13 @@ class EnhancedDataScheduler:
 
         # 설정에 기반하여 크롤러 인스턴스 생성
         crawling_config = self.config.get('crawling', {})
-        self.encar_crawler = EncarCrawler(config=crawling_config.get('encar', {}))
-        self.recall_crawler = RecallCrawler(config=crawling_config.get('recall', {}))
-        self.public_crawler = PublicDataCrawler(config=crawling_config.get('public_data', {}))
+        # self.encar_crawler = EncarCrawler(config=crawling_config.get('encar', {}))
+        # self.recall_crawler = RecallCrawler(config=crawling_config.get('recall', {}))
+        # self.public_crawler = PublicDataCrawler(config=crawling_config.get('public_data', {}))
+        logger.info("WARNING: Crawlers are temporarily disabled.")
         
     def _load_config(self, config_path):
-        """설정 파일 로드"""
+        """Load configuration file"""
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
                 config = json.load(f)
@@ -84,11 +85,11 @@ class EnhancedDataScheduler:
             
             # 리소스 부족 경고 (설정 파일 기준)
             if cpu_percent > limits.get('max_cpu_percent', 80):
-                logger.warning(f" CPU 사용률 높음: {cpu_percent}%")
+                logger.warning(f"High CPU usage: {cpu_percent}%")
             if memory.percent > limits.get('max_memory_percent', 85):
-                logger.warning(f" 메모리 사용률 높음: {memory.percent}%")
+                logger.warning(f"High memory usage: {memory.percent}%")
             if disk.percent > limits.get('max_disk_percent', 90):
-                logger.warning(f" 디스크 사용률 높음: {disk.percent}%")
+                logger.warning(f"High disk usage: {disk.percent}%")
                 
             return resources
             
@@ -203,7 +204,8 @@ class EnhancedDataScheduler:
             
             
             
-            self.retry_with_backoff(lambda: self.encar_crawler.crawl_and_save(car_list))
+            # self.retry_with_backoff(lambda: self.encar_crawler.crawl_and_save(car_list))
+            logger.info("⚠️  엔카 크롤링이 일시적으로 비활성화되었습니다.")
             
             duration = (datetime.now() - start_time).total_seconds()
             
@@ -240,7 +242,8 @@ class EnhancedDataScheduler:
             models_df = db_helper.get_car_models()
             car_list = [{'manufacturer': r['manufacturer'], 'model_name': r['model_name']} for i, r in models_df.iterrows()]
             
-            self.retry_with_backoff(lambda: self.recall_crawler.crawl_and_save(car_list))
+            # self.retry_with_backoff(lambda: self.recall_crawler.crawl_and_save(car_list))
+            logger.info("⚠️  리콜 크롤링이 일시적으로 비활성화되었습니다.")
             
             keywords = self.config.get('alerts', {}).get('critical_recall_keywords', ['화재', '브레이크'])
             placeholders = ','.join(['%s'] * len(keywords))
@@ -266,10 +269,11 @@ class EnhancedDataScheduler:
         logger.info(" 월간 등록 현황 업데이트 시작...")
         try:
             def registration_task():
-                df = self.public_crawler.load_registration_data()
-                if not df.empty:
-                    self.public_crawler.save_to_database(df)
-                    return len(df)
+                # df = self.public_crawler.load_registration_data()
+                # if not df.empty:
+                #     self.public_crawler.save_to_database(df)
+                #     return len(df)
+                logger.info("⚠️  공공데이터 크롤링이 일시적으로 비활성화되었습니다.")
                 return 0
             
             records_count = self.retry_with_backoff(registration_task)
@@ -380,8 +384,8 @@ class EnhancedDataScheduler:
                 time.sleep(delay)
         except KeyboardInterrupt:
             logger.info("🛑 스케줄러 종료...")
-            if self.encar_crawler:
-                self.encar_crawler.close_driver()
+            # if self.encar_crawler:
+            #     self.encar_crawler.close_driver()
             logger.info(" 스케줄러가 정상적으로 종료되었습니다.")
 
 if __name__ == "__main__":

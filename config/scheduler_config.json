@@ -36,7 +36,9 @@
       "delay": 2,
       "timeout": 30,
       "max_retries": 3,
-      "max_pages_per_model": 5
+      "max_pages_per_model": 5,
+      "max_items_per_model": 20,
+      "batch_size": 5
     },
     "recall": {
       "enabled": true,
@@ -45,12 +47,16 @@
       "delay": 1,
       "timeout": 30,
       "max_retries": 3,
-      "check_last_days": 30
+      "check_last_days": 30,
+      "max_items": 50,
+      "max_pages": 10,
+      "page_size": 20,
+      "date_range_days": 30
     },
     "public_data": {
       "enabled": true,
       "auto_download": false,
-      "file_path": "data/registration_stats.xlsx"
+      "file_path": "data/cache/car_registration_data.xlsx"
     }
   },
   "alerts": {

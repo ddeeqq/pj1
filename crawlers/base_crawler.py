@@ -1,5 +1,5 @@
 """
-모든 크롤러의 베이스 클래스
+Base class for all crawlers
 """
 from abc import ABC, abstractmethod
 import time
@@ -10,7 +10,7 @@ import random
 logger = logging.getLogger(__name__)
 
 class BaseCrawler(ABC):
-    """모든 크롤러의 베이스 클래스"""
+    """Base class for all crawlers"""
     
     def __init__(self, config: Dict[str, Any]):
         self.config = config
@@ -21,7 +21,7 @@ class BaseCrawler(ABC):
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36')
         
     def retry_with_backoff(self, func, *args, **kwargs):
-        """공통 재시도 로직"""
+        """Common retry logic"""
         for attempt in range(self.retry_count):
             try:
                 return func(*args, **kwargs)
@@ -31,15 +31,15 @@ class BaseCrawler(ABC):
                     jitter = random.uniform(0, 0.1) * wait_time
                     total_wait = wait_time + jitter
                     
-                    logger.warning(f"시도 {attempt + 1} 실패: {e}")
-                    logger.warning(f"{total_wait:.2f}초 후 재시도")
+                    logger.warning(f"Attempt {attempt + 1} failed: {e}")
+                    logger.warning(f"Retrying in {total_wait:.2f} seconds")
                     time.sleep(total_wait)
                 else:
-                    logger.error(f"모든 재시도 실패: {e}")
+                    logger.error(f"All retry attempts failed: {e}")
                     raise
     
     def safe_sleep(self, duration: float = None):
-        """안전한 대기 (랜덤 지터 포함)"""
+        """Safe wait (with random jitter)"""
         if duration is None:
             duration = self.delay
         
@@ -48,7 +48,7 @@ class BaseCrawler(ABC):
         time.sleep(actual_delay)
     
     def validate_response(self, response) -> bool:
-        """응답 유효성 검증"""
+        """Validate response"""
         if not response:
             return False
         
@@ -58,18 +58,18 @@ class BaseCrawler(ABC):
         return True
     
     def log_crawl_stats(self, source: str, success_count: int, error_count: int, total_time: float):
-        """크롤링 통계 로깅"""
-        logger.info(f"[{source}] 크롤링 완료")
-        logger.info(f"  성공: {success_count}개, 실패: {error_count}개")
-        logger.info(f"  소요시간: {total_time:.2f}초")
-        logger.info(f"  평균 처리시간: {total_time/(success_count+error_count):.2f}초/항목")
+        """Log crawling statistics"""
+        logger.info(f"[{source}] Crawling completed")
+        logger.info(f"  Success: {success_count}, Failed: {error_count}")
+        logger.info(f"  Duration: {total_time:.2f}s")
+        logger.info(f"  Average processing time: {total_time/(success_count+error_count):.2f}s/item")
     
     @abstractmethod
     def crawl_and_save(self, items: List[Any]) -> Dict[str, Any]:
-        """각 크롤러가 구현해야 할 메서드"""
+        """Method that each crawler must implement"""
         pass
     
     @abstractmethod
     def get_source_name(self) -> str:
-        """크롤러의 소스명 반환"""
+        """Return crawler source name"""
         pass

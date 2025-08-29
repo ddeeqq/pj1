@@ -21,7 +21,7 @@ class DataInitializer:
         
     def create_sample_cars(self):
         """샘플 차량 데이터 생성"""
-        logger.info("🚗 샘플 차량 데이터 생성 중...")
+        logger.info("Creating sample car data...")
         
         sample_cars = []
         for manufacturer, models in POPULAR_MODELS.items():
@@ -53,18 +53,18 @@ class DataInitializer:
         for car in sample_cars:
             db_helper.insert_car_model(**car)
             
-        logger.info(f"✅ {len(sample_cars)}개 차량 모델 생성 완료")
+        logger.info(f"Successfully created {len(sample_cars)} car models")
         return sample_cars
     
     def create_sample_prices(self, num_records=100):
         """샘플 가격 데이터 생성"""
-        logger.info("💰 샘플 가격 데이터 생성 중...")
+        logger.info("Creating sample price data...")
         
         # 모든 차량 모델 조회
         models_df = db_helper.get_car_models()
         
         if models_df.empty:
-            logger.warning("차량 모델이 없습니다. 먼저 차량 데이터를 생성하세요.")
+            logger.warning("No car models found. Please create car data first.")
             return
         
         for _, model in models_df.iterrows():
@@ -123,17 +123,20 @@ class DataInitializer:
                     promotion_discount=round(base_price * 0.05)
                 )
                 
-        logger.info("✅ 가격 데이터 생성 완료")
+        logger.info("Successfully created price data")
     
     def create_sample_registrations(self, num_records=500):
         """샘플 등록 통계 생성"""
-        logger.info("📊 샘플 등록 통계 생성 중...")
+        logger.info("Creating sample registration statistics...")
         
         models_df = db_helper.get_car_models()
         
         if models_df.empty:
-            logger.warning("차량 모델이 없습니다.")
+            logger.warning("No car models found.")
             return
+        
+        # 배치 처리를 위한 데이터 수집
+        batch_data = []
         
         # 각 모델별로 지역별 등록 데이터 생성
         for _, model in models_df.iterrows():
@@ -155,19 +158,24 @@ class DataInitializer:
                     count = random.randint(10, 100) * weight
                     cumulative = count * random.randint(50, 200)
                     
-                    db_helper.insert_registration_stats(
-                        model_id=model_id,
-                        region=region,
-                        registration_date=date,
-                        registration_count=int(count),
-                        cumulative_count=int(cumulative)
-                    )
+                    batch_data.append((
+                        model_id, region, date, int(count), int(cumulative)
+                    ))
         
-        logger.info("✅ 등록 통계 생성 완료")
+        # 배치 처리로 한번에 삽입
+        if batch_data:
+            query = """
+            INSERT INTO RegistrationStats 
+            (model_id, region, registration_date, registration_count, cumulative_count)
+            VALUES (%s, %s, %s, %s, %s)
+            """
+            db_helper.execute_many(query, batch_data)
+        
+        logger.info("Successfully created registration statistics")
     
     def create_sample_recalls(self):
         """샘플 리콜 정보 생성"""
-        logger.info("⚠️ 샘플 리콜 정보 생성 중...")
+        logger.info("Creating sample recall information...")
         
         models_df = db_helper.get_car_models()
         
@@ -202,21 +210,25 @@ class DataInitializer:
                 else:
                     severity = '경미'
                 
-                db_helper.insert_recall_info(
-                    model_id=model['model_id'],
-                    recall_date=recall_date,
-                    recall_title=title,
-                    recall_reason=f"{title}으로 인한 안전 문제 발생 가능",
-                    affected_units=random.randint(100, 10000),
-                    severity_level=severity,
-                    fix_description="지정 서비스센터 방문 후 무상 수리"
-                )
+                # 간단한 INSERT 쿼리로 처리
+                query = """
+                INSERT INTO RecallInfo (model_id, recall_date, recall_title, recall_reason, affected_units, severity_level)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """
+                db_helper.execute_query(query, (
+                    model['model_id'],
+                    recall_date,
+                    title,
+                    f"{title}으로 인한 안전 문제 발생 가능",
+                    random.randint(100, 10000),
+                    severity
+                ), fetch=False)
         
-        logger.info("✅ 리콜 정보 생성 완료")
+        logger.info("Successfully created recall information")
     
     def create_sample_faq(self):
         """샘플 FAQ 생성"""
-        logger.info("❓ 샘플 FAQ 생성 중...")
+        logger.info("Creating sample FAQ...")
         
         models_df = db_helper.get_car_models()
         
@@ -276,11 +288,11 @@ class DataInitializer:
                     fetch=False
                 )
         
-        logger.info("✅ FAQ 생성 완료")
+        logger.info("Successfully created FAQ")
     
     def initialize_all(self):
         """전체 샘플 데이터 초기화"""
-        logger.info("🚀 전체 샘플 데이터 초기화 시작...")
+        logger.info("Starting full sample data initialization...")
         
         # 1. 차량 모델 생성
         self.create_sample_cars()
@@ -297,7 +309,7 @@ class DataInitializer:
         # 5. FAQ 생성
         self.create_sample_faq()
         
-        logger.info("🎉 전체 샘플 데이터 초기화 완료!")
+        logger.info("Full sample data initialization completed!")
         
         # 통계 출력
         stats = {
@@ -309,7 +321,7 @@ class DataInitializer:
             'FAQ': 'SELECT COUNT(*) as cnt FROM FAQ'
         }
         
-        logger.info("\n📊 생성된 데이터 통계:")
+        logger.info("\nGenerated data statistics:")
         for table, query in stats.items():
             result = db_helper.execute_query(query)
             count = result[0]['cnt'] if result else 0

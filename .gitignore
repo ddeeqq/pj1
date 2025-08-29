@@ -1,2 +1,25 @@
 __pycache__/
 logs/
+
+# 환경 변수 파일
+.env
+.env.local
+.env.production
+
+# 데이터 파일
+data/cache/
+*.xlsx
+*.csv
+
+# 시스템 파일
+.DS_Store
+Thumbs.db
+
+# IDE 파일
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 크롬 드라이버
+chromedriver.exe
