@@ -117,23 +117,8 @@ class DatabaseManager:
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
         
-        # 5. 리콜 정보 테이블
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS RecallInfo (
-            recall_id INT AUTO_INCREMENT PRIMARY KEY,
-            model_id INT,
-            recall_date DATE,
-            recall_title VARCHAR(200),
-            recall_reason TEXT,
-            affected_units INT,
-            severity_level ENUM('경미', '보통', '심각', '매우심각') DEFAULT '보통',
-            fix_description TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (model_id) REFERENCES CarModel(model_id) ON DELETE CASCADE,
-            INDEX idx_recall_date (recall_date),
-            INDEX idx_severity (severity_level)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        """)
+        # 5. 리콜 정보 테이블 (통합된 버전)
+        # 이 테이블은 나중에 정의된 recall_info 테이블로 대체됩니다.
         
         # 6. 선호 연령대 테이블
         cursor.execute("""

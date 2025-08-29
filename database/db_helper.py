@@ -137,19 +137,12 @@ class DBHelper:
         params = (model_id, trim_name, base_price, options, total_price, promotion_discount)
         return self.execute_query(query, params, fetch=False)
         
-    def insert_recall_info(self, model_id, recall_date, recall_title, 
+    def insert_recall_info_legacy(self, model_id, recall_date, recall_title, 
                           recall_reason, affected_units=0, severity_level='보통', 
                           fix_description=None):
-        """리콜 정보 삽입"""
-        query = """
-        INSERT INTO RecallInfo 
-        (model_id, recall_date, recall_title, recall_reason, 
-         affected_units, severity_level, fix_description)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """
-        params = (model_id, recall_date, recall_title, recall_reason,
-                 affected_units, severity_level, fix_description)
-        return self.execute_query(query, params, fetch=False)
+        """레거시 리콜 정보 삽입 함수 (사용하지 않음)"""
+        # 이 함수는 더 이상 사용되지 않습니다. insert_recall_info(**kwargs)를 사용하세요.
+        pass
         
     def insert_registration_stats(self, model_id, region, registration_date, 
                                  registration_count, cumulative_count=0):
@@ -198,7 +191,7 @@ class DBHelper:
         """리콜 정보 조회"""
         query = """
         SELECT ri.*, cm.manufacturer, cm.model_name 
-        FROM RecallInfo ri
+        FROM recall_info ri
         JOIN CarModel cm ON ri.model_id = cm.model_id
         WHERE 1=1
         """
@@ -419,6 +412,24 @@ class DBHelper:
         query = "SELECT model_id FROM CarModel WHERE manufacturer = %s AND model_name = %s LIMIT 1"
         result = self.execute_query(query, (manufacturer, model_name))
         return result[0]['model_id'] if result else None
+    
+    def get_or_insert_car_model(self, manufacturer, model_name, fuel_type=None, **kwargs):
+        """자동차 모델 조회 또는 삽입"""
+        # 먼저 모델 ID 조회 시도
+        model_id = self.get_car_model_id(manufacturer, model_name)
+        
+        # 모델이 존재하지 않으면 새로 삽입
+        if not model_id:
+            self.insert_car_model(
+                manufacturer=manufacturer, 
+                model_name=model_name, 
+                fuel_type=fuel_type,
+                **kwargs
+            )
+            # 다시 조회하여 ID 반환
+            model_id = self.get_car_model_id(manufacturer, model_name)
+        
+        return model_id
 
     def execute_insert(self, query, data):
         """INSERT 쿼리 실행"""

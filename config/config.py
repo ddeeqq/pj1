@@ -1,19 +1,47 @@
 """
-프로젝트 전체 설정 파일
+프로젝트 전체 설정 파일 - 환경 변수 지원
 """
 import os
 from datetime import datetime
+from dotenv import load_dotenv
+
+# .env 파일 로드
+load_dotenv()
+
+# 환경 변수 헬퍼 함수
+def get_env_var(key, default=None, var_type=str):
+    """환경 변수를 타입과 함께 안전하게 가져오기"""
+    value = os.getenv(key)
+    if value is None:
+        return default
+    
+    if var_type == bool:
+        if isinstance(value, bool):
+            return value
+        return str(value).lower() in ('true', '1', 'yes', 'on')
+    elif var_type == int:
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            return default
+    elif var_type == float:
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return default
+    return str(value)
 
 # 프로젝트 루트 경로
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(PROJECT_ROOT, 'data')
 
-# 데이터베이스 설정
+# 환경 변수 기반 데이터베이스 설정
 DATABASE_CONFIG = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': '1234',
-    'database': 'car_analysis_db',
+    'host': get_env_var('DB_HOST', 'localhost'),
+    'port': get_env_var('DB_PORT', 3306, int),
+    'user': get_env_var('DB_USER', 'root'),
+    'password': get_env_var('DB_PASSWORD', 'your_password'),
+    'database': get_env_var('DB_NAME', 'car_analysis_db'),
     'charset': 'utf8mb4'
 }
 
@@ -28,19 +56,24 @@ DATA_FILES = {
     'cache': os.path.join(DATA_DIR, 'cache')
 }
 
-# 로깅 설정
+# 환경 변수 기반 로깅 설정
 LOG_CONFIG = {
     'log_dir': os.path.join(PROJECT_ROOT, 'logs'),
     'log_file': f'car_analysis_{datetime.now().strftime("%Y%m%d")}.log',
-    'log_level': 'INFO'
+    'log_level': get_env_var('LOG_LEVEL', 'INFO'),
+    'log_to_file': get_env_var('LOG_TO_FILE', True, bool),
+    'max_size_mb': get_env_var('LOG_MAX_SIZE_MB', 10, int),
+    'backup_count': get_env_var('LOG_BACKUP_COUNT', 5, int)
 }
 
-# Streamlit 설정
+# 환경 변수 기반 Streamlit 설정
 STREAMLIT_CONFIG = {
-    'page_title': '🚗 데이터 기반 중고차 vs 신차 가성비 분석 시스템',
-    'page_icon': '🚗',
-    'layout': 'wide',
-    'initial_sidebar_state': 'expanded'
+    'page_title': get_env_var('STREAMLIT_PAGE_TITLE', '🚗 데이터 기반 중고차 vs 신차 가성비 분석 시스템'),
+    'page_icon': get_env_var('STREAMLIT_PAGE_ICON', '🚗'),
+    'layout': get_env_var('STREAMLIT_LAYOUT', 'wide'),
+    'initial_sidebar_state': get_env_var('STREAMLIT_SIDEBAR_STATE', 'expanded'),
+    'host': get_env_var('STREAMLIT_HOST', 'localhost'),
+    'port': get_env_var('STREAMLIT_PORT', 8501, int)
 }
 
 # 자동차 제조사 목록
@@ -80,13 +113,22 @@ ANALYSIS_WEIGHTS = {
     'age_weight': 0.1         # 연식 가중치
 }
 
-# 크롤링 설정
+# 환경 변수 기반 크롤링 설정
 CRAWLING_CONFIG = {
+    'encar': {
+        'delay': get_env_var('ENCAR_DELAY', 2, int),
+        'max_items_per_model': get_env_var('ENCAR_MAX_ITEMS', 20, int),
+        'batch_size': get_env_var('ENCAR_BATCH_SIZE', 5, int),
+        'search_url': 'http://www.encar.com/dc/dc_carsearchlist.do'
+    },
     'recall': {
-        'delay': 2,  # 요청 간격 (초)
-        'max_retries': 3,  # 최대 재시도 횟수
-        'timeout': 30,  # 타임아웃 (초)
+        'delay': get_env_var('RECALL_DELAY', 1, int),
+        'max_items': get_env_var('RECALL_MAX_ITEMS', 50, int),
+        'max_retries': 3,
+        'timeout': 30,
         'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        
+        # 크롤링 대상 설정
 
         # 크롤링 대상 설정
         'target_manufacturers': [
@@ -121,15 +163,45 @@ CRAWLING_CONFIG = {
             'email_recipients': [],  # 알림 수신자
             'slack_webhook': ''  # 슬랙 웹훅 URL
         }
+    },
+    'public_data': {
+        'file_path': get_env_var('PUBLIC_DATA_FILE_PATH', './data/cache/car_registration_data.xlsx')
     }
 }
 
-# 캐시 설정
+# 환경 변수 기반 캐시 설정
 CACHE_CONFIG = {
-    'enable': True,
-    'ttl': 3600,  # 캐시 유효 시간 (초)
-    'max_size': 100  # 최대 캐시 아이템 수
+    'enable': get_env_var('CACHE_ENABLE', True, bool),
+    'ttl': get_env_var('CACHE_TTL', 3600, int),
+    'max_size': get_env_var('CACHE_MAX_SIZE', 100, int)
 }
+
+# 보안 설정
+SECURITY_CONFIG = {
+    'secret_key': get_env_var('SECRET_KEY', 'your-secret-key-here-change-this-in-production'),
+    'encrypt_logs': get_env_var('ENCRYPT_LOGS', False, bool)
+}
+
+# 스케줄러 설정
+SCHEDULER_CONFIG = {
+    'enable': get_env_var('SCHEDULER_ENABLE', True, bool),
+    'interval_hours': get_env_var('SCHEDULER_INTERVAL_HOURS', 24, int)
+}
+
+# 환경 변수 검증 함수
+def validate_config():
+    """필수 환경 변수들이 올바르게 설정되었는지 검증"""
+    required_vars = {
+        'DB_PASSWORD': DATABASE_CONFIG['password'],
+        'SECRET_KEY': SECURITY_CONFIG['secret_key']
+    }
+    
+    warnings = []
+    for var_name, value in required_vars.items():
+        if value in ('your_password', 'your-secret-key-here-change-this-in-production'):
+            warnings.append(f"{var_name}이 기본값으로 설정되어 있습니다. 보안을 위해 변경해주세요.")
+    
+    return warnings
 
 # 디렉토리 생성
 def create_directories():
@@ -138,5 +210,26 @@ def create_directories():
     for dir_path in dirs:
         os.makedirs(dir_path, exist_ok=True)
 
-# 프로젝트 실행 시 디렉토리 생성
+# 설정 요약 출력
+def print_config_summary():
+    """현재 설정 요약 정보 출력"""
+    print("\n[설정 정보]")
+    print(f"  데이터베이스: {DATABASE_CONFIG['host']}:{DATABASE_CONFIG['port']}")
+    print(f"  로그 레벨: {LOG_CONFIG['log_level']}")
+    print(f"  Streamlit: {STREAMLIT_CONFIG['host']}:{STREAMLIT_CONFIG['port']}")
+    print(f"  스케줄러: {'활성' if SCHEDULER_CONFIG['enable'] else '비활성'}")
+    
+    warnings = validate_config()
+    if warnings:
+        print("\n[보안 경고]")
+        for warning in warnings:
+            print(f"  - {warning}")
+        print("\n.env 파일을 생성하여 환경 변수를 설정하세요.")
+        print("참고: .env.example 파일을 복사해서 사용하세요.\n")
+
+# 프로젝트 실행 시 디렉토리 생성 및 설정 검증
 create_directories()
+
+# 메인 모듈에서 실행될 때만 설정 요약 출력
+if __name__ == '__main__':
+    print_config_summary()

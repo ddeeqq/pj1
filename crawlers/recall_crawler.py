@@ -417,10 +417,7 @@ class RecallCrawler:
                     logger.info(f"🚗 {manufacturer} {model_name} 리콜 정보 수집 중...")
 
                     # 모델 ID 조회 또는 생성
-                    model_id = db_helper.get_car_model_id(manufacturer, model_name)
-                    if not model_id:
-                        db_helper.insert_car_model(manufacturer, model_name)
-                        model_id = db_helper.get_car_model_id(manufacturer, model_name)
+                    model_id = db_helper.get_or_insert_car_model(manufacturer, model_name)
 
                     # 리콜 정보 검색
                     recall_data = self.search_recall_info(
@@ -457,10 +454,7 @@ class RecallCrawler:
                     model_name = recall['model_name']
 
                     # 모델 ID 조회 또는 생성
-                    model_id = db_helper.get_car_model_id(manufacturer, model_name)
-                    if not model_id:
-                        db_helper.insert_car_model(manufacturer, model_name)
-                        model_id = db_helper.get_car_model_id(manufacturer, model_name)
+                    model_id = db_helper.get_or_insert_car_model(manufacturer, model_name)
 
                     # DB에 저장
                     recall['model_id'] = model_id

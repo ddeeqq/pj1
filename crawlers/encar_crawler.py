@@ -3,7 +3,6 @@
 """
 import re
 import time
-import logging
 import pandas as pd
 from datetime import datetime
 import sys
@@ -19,9 +18,9 @@ from bs4 import BeautifulSoup
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from database.db_helper import db_helper
+from config.logging_config import get_crawler_logger, PerformanceLogger
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = get_crawler_logger('encar')
 
 class EncarCrawler:
     def __init__(self, config):
@@ -145,42 +144,95 @@ class EncarCrawler:
         elif mileage < 150000: return '10-15만km'
         else: return '15만km 이상'
             
-    def crawl_and_save(self, car_list):
-        """차량 목록을 크롤링하고 DB에 저장"""
+    def crawl_and_save_batch(self, car_list, batch_size=10):
+        """배치 단위 크롤링 (기본 방식)"""
+        return self.crawl_and_save(car_list)
+        
+    def crawl_and_save(self, car_list, batch_size=5):
+        """배치 처리로 개선된 크롤링 및 DB 저장"""
         db_helper.update_crawling_log('encar', '시작')
         total_collected = 0
         delay = self.config.get('delay', 2)
         
         try:
-            for car in car_list:
-                model_id = db_helper.get_or_insert_car_model(car['manufacturer'], car['model_name'])
-                car_data = self.search_car_prices(car['manufacturer'], car['model_name'], car.get('year'))
+            # 배치 단위로 처리
+            for i in range(0, len(car_list), batch_size):
+                batch = car_list[i:i+batch_size]
+                logger.info(f"📦 배치 {i//batch_size + 1}/{(len(car_list) + batch_size - 1)//batch_size} 처리 시작")
                 
-                if car_data:
-                    df = pd.DataFrame(car_data)
-                    grouped = df.groupby(['year', 'mileage_range'])['price'].agg(
-                        avg_price=('mean'), min_price=('min'),
-                        max_price=('max'), sample_count=('count')
-                    ).reset_index()
+                # 배치 데이터 수집
+                batch_data = []
+                for car in batch:
+                    try:
+                        model_id = db_helper.get_or_insert_car_model(car['manufacturer'], car['model_name'])
+                        car_data = self.search_car_prices(car['manufacturer'], car['model_name'], car.get('year'))
+                        
+                        if car_data:
+                            for data in car_data:
+                                data['model_id'] = model_id
+                            batch_data.extend(car_data)
+                            logger.info(f"✅ {car['model_name']}: {len(car_data)}건 수집")
+                        
+                        time.sleep(delay)
+                    except Exception as e:
+                        logger.error(f"❌ {car.get('model_name', 'Unknown')} 처리 실패: {e}")
+                        continue
+                
+                # 배치 단위 DB 저장
+                if batch_data:
+                    saved_count = self._bulk_save_to_db(batch_data)
+                    total_collected += saved_count
+                    logger.info(f"📦 배치 저장 완료: {saved_count}건")
+                
+                # 배치 간 지연
+                if i + batch_size < len(car_list):
+                    time.sleep(delay * 2)
                     
-                    for _, row in grouped.iterrows():
-                        db_helper.insert_used_car_price(
-                            model_id=model_id, year=int(row['year']) if pd.notna(row['year']) else None,
-                            mileage_range=row['mileage_range'], avg_price=float(row['avg_price']),
-                            min_price=float(row['min_price']), max_price=float(row['max_price']),
-                            sample_count=int(row['sample_count']), data_source='encar'
-                        )
-                    total_collected += len(car_data)
-                    logger.info(f"✅ {car['model_name']} 데이터 저장 완료 ({len(car_data)}건)")
-                time.sleep(delay)
-                
             db_helper.update_crawling_log('encar', '완료', total_collected)
-            logger.info(f"🎉 전체 크롤링 완료! 총 {total_collected}건 수집")
+            logger.info(f"🎉 전체 배치 크롤링 완료! 총 {total_collected}건 수집")
+            
         except Exception as e:
             db_helper.update_crawling_log('encar', '실패', total_collected, str(e))
-            logger.error(f"크롤링 실패: {e}")
+            logger.error(f"배치 크롤링 실패: {e}")
         finally:
             self.close_driver()
+            
+    def _bulk_save_to_db(self, batch_data):
+        """배치 단위 DB 저장 최적화"""
+        if not batch_data:
+            return 0
+            
+        try:
+            df = pd.DataFrame(batch_data)
+            grouped = df.groupby(['model_id', 'year', 'mileage_range'])['price'].agg(
+                avg_price='mean', 
+                min_price='min',
+                max_price='max', 
+                sample_count='count'
+            ).reset_index()
+            
+            saved_count = 0
+            for _, row in grouped.iterrows():
+                try:
+                    db_helper.insert_used_car_price(
+                        model_id=int(row['model_id']),
+                        year=int(row['year']) if pd.notna(row['year']) else None,
+                        mileage_range=row['mileage_range'],
+                        avg_price=float(row['avg_price']),
+                        min_price=float(row['min_price']),
+                        max_price=float(row['max_price']),
+                        sample_count=int(row['sample_count']),
+                        data_source='encar'
+                    )
+                    saved_count += 1
+                except Exception as e:
+                    logger.debug(f"개별 데이터 저장 실패: {e}")
+                    continue
+                    
+            return saved_count
+        except Exception as e:
+            logger.error(f"배치 데이터 저장 오류: {e}")
+            return 0
 
 if __name__ == '__main__':
     import json
@@ -198,14 +250,19 @@ if __name__ == '__main__':
         test_cars = [
             {'manufacturer': '현대', 'model_name': '그랜저 IG'},
             {'manufacturer': '기아', 'model_name': 'K5 DL3'},
+            {'manufacturer': '현대', 'model_name': '소나타'},
+            {'manufacturer': '기아', 'model_name': '셀토스'},
         ]
         
         # 실제 크롤링을 실행하려면 아래 주석을 해제하세요.
-        # print("테스트 크롤링 시작...")
-        # crawler.crawl_and_save(test_cars)
+        print("테스트 배치 크롤링 (배치 크기: 2):")
+        # crawler.crawl_and_save(test_cars, batch_size=2)
+        print("실제 실행하려면 주석을 해제하세요.")
         
-        print("엔카 크롤러 준비 완료!")
-        print("실제 크롤링을 실행하려면 코드의 주석을 해제하세요.")
+        print("🚗 엔카 배치 크롤러 준비 완료!")
+        print("  - 배치 처리 지원")
+        print("  - 대량 데이터 수집 최적화")
+        print("  - 오류 복구력 향상")
 
     except FileNotFoundError:
         print("오류: config/scheduler_config.json 파일을 찾을 수 없습니다.")

@@ -81,11 +81,19 @@ class ProjectSetup:
         print("\n" + "="*50)
         print("MySQL 데이터베이스 설정")
         print("="*50)
+        print("※ MySQL 서버가 설치되어 있고 실행 중이어야 합니다.")
+        print("※ 비밀번호가 틀리면 연결에 실패합니다.")
         
         host = input("MySQL 호스트 (기본: localhost): ").strip() or "localhost"
         port = input("MySQL 포트 (기본: 3306): ").strip() or "3306"
         user = input("MySQL 사용자명 (기본: root): ").strip() or "root"
+        
+        # 비밀번호 재입력 확인
         password = input("MySQL 비밀번호: ").strip()
+        if not password:
+            logger.error("❌ 비밀번호는 필수입니다!")
+            return False
+            
         database = input("데이터베이스명 (기본: car_analysis_db): ").strip() or "car_analysis_db"
         
         # 연결 테스트
@@ -125,7 +133,12 @@ class ProjectSetup:
             
         except Error as e:
             logger.error(f"❌ MySQL 연결 실패: {e}")
-            logger.info("MySQL 서버가 실행 중인지 확인하고, 접속 정보를 다시 확인해주세요.")
+            print("\n🔧 해결 방법:")
+            print("1. MySQL 서버가 실행 중인지 확인")
+            print("2. 사용자명과 비밀번호가 정확한지 확인") 
+            print("3. MySQL 포트(3306)가 열려있는지 확인")
+            print("4. 방화벽에서 MySQL 접근을 허용했는지 확인")
+            print("\n다시 실행하려면: python setup.py")
             return False
     
     def update_database_config(self, config_file, db_config):
