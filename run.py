@@ -45,28 +45,36 @@ def crawl_all_data():
         logger.error(f"Failed to read config file: {e}")
         return
 
-    # 1. 공공데이터 수집 (비활성화)
-    # try:
-    #     from crawlers.public_data_crawler import PublicDataCrawler
-    #     logger.info("--- 공공데이터 수집 시작 ---")
-    #     pd_crawler = PublicDataCrawler(config.get('public_data', {}))
-    #     df = pd_crawler.load_registration_data()
-    #     if not df.empty:
-    #         pd_crawler.save_to_database(df)
-    #     logger.info("✅ 공공데이터 수집 완료")
-    # except Exception as e:
-    #     logger.error(f"❌ 공공데이터 수집 실패: {e}")
-    logger.info("WARNING: Public data collection is temporarily disabled.")
+    # 1. 공공데이터 수집
+    try:
+        from crawlers.public_data_crawler import PublicDataCrawler
+        logger.info("--- 공공데이터 수집 시작 ---")
+        pd_crawler = PublicDataCrawler(config.get('public_data', {}))
+        collected = pd_crawler.crawl_and_save()
+        logger.info(f" 공공데이터 수집 완료: {collected}건")
+    except Exception as e:
+        logger.error(f"[ERROR] 공공데이터 수집 실패: {e}")
     
-    # 2. 중고차 가격 수집 (비활성화)
-    # logger.warning("엔카 중고차 가격 크롤링은 시간이 오래 걸릴 수 있습니다.")
-    # response = input("중고차 가격을 크롤링하시겠습니까? (y/n): ").lower()
-    # if response == 'y':
-    #     try:
-    #         from crawlers.encar_crawler import EncarCrawler
-    #         from config.config import POPULAR_MODELS
-    #         logger.info("--- 중고차 가격 수집 시작 ---")
-    logger.info("WARNING: Used car price crawling is temporarily disabled.")
+    # 2. K카 중고차 가격 수집
+    logger.warning("K카 중고차 가격 크롤링은 시간이 오래 걸릴 수 있습니다.")
+    response = input("중고차 가격을 크롤링하시겠습니까? (y/n): ").lower()
+    if response == 'y':
+        try:
+            from crawlers.kcar_crawler import KCarCrawler
+            from config.config import POPULAR_MODELS
+            logger.info("--- K카 중고차 가격 수집 시작 ---")
+            
+            kcar_crawler = KCarCrawler(config.get('kcar', config.get('encar', {})))
+            car_list = []
+            # 테스트를 위해 각 제조사별 1개 모델만 크롤링
+            for manufacturer, models in POPULAR_MODELS.items():
+                if models:
+                    car_list.append({'manufacturer': manufacturer, 'model_name': models[0]})
+            
+            collected = kcar_crawler.crawl_and_save(car_list)
+            logger.info(f" K카 가격 크롤링 완료: {collected}건")
+        except Exception as e:
+            logger.error(f"[ERROR] K카 가격 수집 실패: {e}")
             
     #         encar_crawler = EncarCrawler(config.get('encar', {}))
     #         car_list = []
@@ -76,27 +84,23 @@ def crawl_all_data():
     #                 car_list.append({'manufacturer': manufacturer, 'model_name': models[0]})
     #         
     #         encar_crawler.crawl_and_save(car_list)
-    #         logger.info("✅ 중고차 가격 크롤링 완료")
+    #         logger.info(" 중고차 가격 크롤링 완료")
     #     except Exception as e:
-    #         logger.error(f"❌ 중고차 가격 수집 실패: {e}")
+    #         logger.error(f"[ERROR] 중고차 가격 수집 실패: {e}")
 
-    # 3. 리콜 정보 수집 (비활성화)
-    # response = input("리콜 정보를 크롤링하시겠습니까? (y/n): ").lower()
-    # if response == 'y':
-    #     try:
-    #         from crawlers.recall_crawler import RecallCrawler
-    #         from database.db_helper import db_helper
-    #         logger.info("--- 리콜 정보 수집 시작 ---")
+    # 3. 리콜 정보 수집
+    response = input("리콜 정보를 크롤링하시겠습니까? (y/n): ").lower()
+    if response == 'y':
+        try:
+            from crawlers.recall_crawler import RecallCrawler
+            from database.db_helper import db_helper
+            logger.info("--- 리콜 정보 수집 시작 ---")
 
-    #         recall_crawler = RecallCrawler(config.get('recall', {}))
-    #         models_df = db_helper.get_car_models()
-    #         car_list = models_df.to_dict('records')
-
-    #         recall_crawler.crawl_and_save(car_list)
-    #         logger.info("✅ 리콜 정보 수집 완료")
-    #     except Exception as e:
-    #         logger.error(f"❌ 리콜 정보 수집 실패: {e}")
-    logger.info("WARNING: Recall information crawling is temporarily disabled.")
+            recall_crawler = RecallCrawler(config.get('recall', {}))
+            collected = recall_crawler.crawl_and_save()
+            logger.info(f" 리콜 정보 수집 완룼: {collected}건")
+        except Exception as e:
+            logger.error(f"[ERROR] 리콜 정보 수집 실패: {e}")
 
 def test_connection():
     """Test database connection"""

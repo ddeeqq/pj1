@@ -72,8 +72,8 @@ LOG_CONFIG = {
 
 # 환경 변수 기반 Streamlit 설정
 STREAMLIT_CONFIG = {
-    'page_title': get_env_var('STREAMLIT_PAGE_TITLE', '🚗 데이터 기반 중고차 vs 신차 가성비 분석 시스템'),
-    'page_icon': get_env_var('STREAMLIT_PAGE_ICON', '🚗'),
+    'page_title': get_env_var('STREAMLIT_PAGE_TITLE', '[AUTO] 데이터 기반 중고차 vs 신차 가성비 분석 시스템'),
+    'page_icon': get_env_var('STREAMLIT_PAGE_ICON', '[AUTO]'),
     'layout': get_env_var('STREAMLIT_LAYOUT', 'wide'),
     'initial_sidebar_state': get_env_var('STREAMLIT_SIDEBAR_STATE', 'expanded'),
     'host': get_env_var('STREAMLIT_HOST', 'localhost'),
@@ -119,7 +119,13 @@ ANALYSIS_WEIGHTS = {
 
 # 환경 변수 기반 크롤링 설정
 CRAWLING_CONFIG = {
-    'encar': {
+    'kcar': {
+        'delay': get_env_var('KCAR_DELAY', 3, int),
+        'max_items_per_model': get_env_var('KCAR_MAX_ITEMS', 20, int),
+        'max_pages': get_env_var('KCAR_MAX_PAGES', 3, int),
+        'search_url': 'https://www.kcar.com/bc/search'
+    },
+    'encar': {  # 호환성을 위한 기존 설정 유지
         'delay': get_env_var('ENCAR_DELAY', 2, int),
         'max_items_per_model': get_env_var('ENCAR_MAX_ITEMS', 20, int),
         'batch_size': get_env_var('ENCAR_BATCH_SIZE', 5, int),

@@ -15,9 +15,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.config import STREAMLIT_CONFIG, CAR_MANUFACTURERS, POPULAR_MODELS
 from database.db_helper import db_helper
 from analyzers.price_analyzer import PriceAnalyzer
-# from crawlers.public_data_crawler import PublicDataCrawler
-# from crawlers.encar_crawler import EncarCrawler
-# from crawlers.recall_crawler import RecallCrawler
+from crawlers.public_data_crawler import PublicDataCrawler
+from crawlers.kcar_crawler import KCarCrawler
+from crawlers.recall_crawler import RecallCrawler
 
 # 페이지 설정
 st.set_page_config(

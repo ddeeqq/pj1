@@ -29,8 +29,19 @@
     "backup_keep_days": 14
   },
   "crawling": {
-    "encar": {
+    "kcar": {
       "enabled": true,
+      "base_url": "https://www.kcar.com",
+      "search_url": "https://www.kcar.com/bc/search",
+      "delay": 3,
+      "timeout": 30,
+      "max_retries": 3,
+      "max_pages_per_model": 3,
+      "max_items_per_model": 20,
+      "batch_size": 5
+    },
+    "encar": {
+      "enabled": false,
       "base_url": "http://www.encar.com",
       "search_url": "http://www.encar.com/dc/dc_carsearchlist.do",
       "delay": 2,

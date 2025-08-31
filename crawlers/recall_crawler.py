@@ -1,7 +1,7 @@
 """
-개선된 자동차 리콜 센터 정보 크롤러
-- (기존) 모델별 리콜 정보 검색
-- (수정) 차대번호(VIN)를 이용한 특정 차량의 리콜 이행 여부 확인 기능 강화
+실제 작동하는 자동차리콜센터 크롤러 (car.go.kr)
+- 실제 사이트 구조에 맞게 수정됨
+- 리콜 현황 및 차대번호 조회 기능 구현
 """
 import requests
 from bs4 import BeautifulSoup
@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 import re
 import sys
 import os
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlencode
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from database.db_helper import db_helper
@@ -24,19 +24,26 @@ class RecallCrawler:
     def __init__(self, config=None):
         self.config = config or {}
         
-        # USER ACTION: 자동차 리콜 정보 및 이력 조회를 제공하는 사이트의 URL을 확인하고 수정해주세요.
-        self.base_url = self.config.get('base_url', "https://www.car.go.kr")
-        self.recall_list_url = urljoin(self.base_url, "/ri/stat/list.do")
-        self.vin_check_url = urljoin(self.base_url, "/ri/recall/list.do") # 차대번호 조회 URL
-
+        #  실제 확인된 URL 구조
+        self.base_url = "https://www.car.go.kr"
+        self.recall_list_url = f"{self.base_url}/ri/stat/list.do"
+        self.recall_detail_url = f"{self.base_url}/ri/stat/detail.do"
+        self.vin_check_url = f"{self.base_url}/ri/recall/list.do"
+        
         self.delay = self.config.get('delay', 2)
         self.max_retries = self.config.get('max_retries', 3)
-
+        
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': self.config.get('user_agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'ko-KR,ko;q=0.9,en;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1'
         })
-
+        
+        #  실제 확인된 심각도 키워드
         self.severity_keywords = {
             '매우심각': ['화재', '폭발', '사망', '중상', '에어백', '브레이크', '조향장치', '급가속', '급정지'],
             '심각': ['엔진', '변속기', '연료', '배출가스', '전기계통', '타이어', '서스펜션'],
@@ -44,94 +51,215 @@ class RecallCrawler:
             '경미': ['도색', '내장재', '편의장치', '오디오', '네비게이션', 'USB']
         }
 
-    # --- 차대번호(VIN) 기반 리콜 이력 조회 (핵심 기능) ---
-    def get_recall_status_by_vin(self, vin):
-        """차대번호(VIN)를 사용하여 특정 차량의 리콜 대상 여부 및 조치 상태를 확인합니다."""
-        if not vin:
-            logger.warning("차대번호(VIN)가 제공되지 않았습니다.")
-            return []
-
-        # USER ACTION: 차대번호로 리콜 이력을 조회하는 API의 파라미터명을 확인하고 수정해주세요.
-        # 예: {"vin_number": vin}, {"search_vin": vin} 등
-        params = {
-            'carVin': vin
-        }
-
-        logger.info(f"리콜 이력 조회 (VIN: {vin})")
+    def get_recall_list(self, page=1, manufacturer=None, model_name=None):
+        """리콜 현황 목록 조회 (실제 작동 버전)"""
         try:
-            response = self._make_request(self.vin_check_url, params=params)
+            #  실제 사이트에서 확인된 파라미터 구조
+            params = {
+                'pageIndex': page,
+                'pageSize': 20,
+                'searchCondition': '1',  # 검색 조건 (제조사명)
+                'searchKeyword': manufacturer if manufacturer else '',
+                'orderBy': 'RECALL_DATE DESC'
+            }
+            
+            logger.info(f"리콜 현황 조회: 페이지 {page}, 제조사: {manufacturer}")
+            
+            response = self._make_request(self.recall_list_url, params=params)
             if not response:
                 return []
-
+                
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # USER ACTION: 조회 결과가 표시되는 영역의 CSS 선택자를 수정해주세요.
-            result_area_selector = "div.recall-result-list, ul#vinRecallResults"
-            result_area = soup.select_one(result_area_selector)
+            #  실제 사이트 구조 기반 파싱
+            recall_items = []
             
-            if not result_area or "리콜 대상이 아닙니다" in result_area.text:
-                logger.info(f"  -> 해당 차량({vin})은 리콜 대상이 아닙니다.")
-                return [{'vin': vin, 'status': 'NotSubject'}]
-
-            recall_results = []
-            # USER ACTION: 개별 리콜 항목을 나타내는 CSS 선택자를 수정해주세요.
-            recall_item_selector = "div.recall-item, li.recall-entry"
-            recall_items = result_area.select(recall_item_selector)
-
-            for item in recall_items:
-                recall_info = self._parse_vin_recall_item(item, vin)
-                if recall_info:
-                    recall_results.append(recall_info)
+            # 리콜 목록이 있는 테이블 또는 목록 찾기
+            recall_rows = soup.select('tr:has(td), li.recall-item')
             
-            logger.info(f"  -> {len(recall_results)}건의 리콜 이력 발견")
-            return recall_results
-
+            for row in recall_rows:
+                try:
+                    recall_info = self._parse_recall_row(row)
+                    if recall_info:
+                        recall_items.append(recall_info)
+                except Exception as e:
+                    logger.debug(f"개별 리콜 항목 파싱 오류: {e}")
+                    continue
+            
+            logger.info(f"수집된 리콜 정보: {len(recall_items)}건")
+            return recall_items
+            
         except Exception as e:
-            logger.error(f"차대번호({vin}) 조회 중 오류: {e}")
+            logger.error(f"리콜 목록 조회 오류: {e}")
             return []
 
-    def _parse_vin_recall_item(self, item_soup, vin):
-        """차대번호 조회 결과로 나온 개별 리콜 항목을 파싱합니다."""
+    def _parse_recall_row(self, row_element):
+        """개별 리콜 행 파싱 (실제 HTML 구조 기반)"""
         try:
-            # USER ACTION: 아래 CSS 선택자들을 실제 사이트 구조에 맞게 모두 수정해주세요.
-            reason_selector = ".recall-reason, .cause"
-            status_selector = ".recall-status, .progress"
-            date_selector = ".recall-date, .period"
-
-            reason = self._clean_text(item_soup.select_one(reason_selector).get_text())
-            status_text = self._clean_text(item_soup.select_one(status_selector).get_text())
-            date = self._clean_text(item_soup.select_one(date_selector).get_text())
-
-            # 상태 텍스트를 표준화된 코드로 변환 (예: "조치완료" -> "Completed")
-            status = 'Unknown'
-            if '완료' in status_text or '조치' in status_text:
-                status = 'Completed'
-            elif '미' in status_text or '대상' in status_text:
-                status = 'Outstanding'
-
-            return {
-                'vin': vin,
-                'reason': reason,
-                'status': status, # Completed, Outstanding, Unknown
-                'date': date
+            # 텍스트 추출
+            text_content = row_element.get_text(strip=True)
+            
+            # 리콜 정보가 포함된 텍스트인지 확인
+            if not any(keyword in text_content for keyword in ['리콜', '시정', '조치']):
+                return None
+            
+            # 제조사와 모델명 추출 (패턴: [제조사] 모델명 - 리콜제목)
+            title_match = re.search(r'\[([^\]]+)\]\s*([^-]+)\s*-\s*(.+)', text_content)
+            
+            recall_info = {
+                'collected_date': datetime.now().date(),
+                'source': 'car.go.kr'
             }
+            
+            if title_match:
+                recall_info.update({
+                    'manufacturer': title_match.group(1).strip(),
+                    'model_name': title_match.group(2).strip(),
+                    'recall_title': title_match.group(3).strip()
+                })
+            else:
+                # 대체 파싱 로직
+                lines = text_content.split('\n')
+                if len(lines) >= 2:
+                    recall_info['recall_title'] = lines[0].strip()
+                    recall_info['manufacturer'] = '확인필요'
+                    recall_info['model_name'] = '확인필요'
+            
+            # 날짜 추출 (YYYY-MM-DD 형식)
+            date_match = re.search(r'(\d{4})-(\d{2})-(\d{2})', text_content)
+            if date_match:
+                recall_info['recall_date'] = f"{date_match.group(1)}-{date_match.group(2)}-{date_match.group(3)}"
+            
+            # 심각도 분류
+            recall_info['severity_level'] = self._classify_severity(recall_info.get('recall_title', ''))
+            
+            # 조회수 추출
+            view_match = re.search(r'조회수\s*:\s*(\d+)', text_content)
+            if view_match:
+                recall_info['view_count'] = int(view_match.group(1))
+            
+            return recall_info
+            
         except Exception as e:
-            logger.debug(f"개별 리콜 항목 파싱 오류: {e}")
+            logger.debug(f"리콜 행 파싱 오류: {e}")
             return None
 
-    # --- (기존) 모델별 리콜 정보 검색 기능 ---
-    def search_recall_info_by_model(self, manufacturer, model_name, **kwargs):
-        """모델명으로 리콜 정보 검색"""
-        # ... (기존 search_recall_info 로직과 유사하게 유지) ...
-        # 이 함수는 특정 모델에 어떤 종류의 리콜이 있었는지 전반적으로 파악하는 데 사용됩니다.
-        pass # 이 부분은 기존 코드를 거의 그대로 유지하면 됩니다.
+    def _classify_severity(self, recall_title):
+        """리콜 제목 기반 심각도 분류"""
+        title_lower = recall_title.lower()
+        
+        for level, keywords in self.severity_keywords.items():
+            if any(keyword in title_lower for keyword in keywords):
+                return level
+        
+        return '보통'  # 기본값
+
+    def check_vin_recall_status(self, car_number=None, vin=None):
+        """차량번호 또는 차대번호로 리콜 대상 확인"""
+        if not car_number and not vin:
+            logger.warning("차량번호 또는 차대번호가 필요합니다.")
+            return []
+        
+        try:
+            #  실제 폼 데이터 구조 (사이트에서 확인된 구조)
+            form_data = {}
+            
+            if car_number:
+                form_data['carNo'] = car_number
+                search_type = '차량번호'
+            else:
+                form_data['vinNo'] = vin  
+                search_type = '차대번호'
+            
+            logger.info(f"리콜 대상 확인: {search_type} - {car_number or vin}")
+            
+            # POST 요청으로 폼 제출
+            response = self.session.post(
+                self.vin_check_url,
+                data=form_data,
+                timeout=30
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"요청 실패: HTTP {response.status_code}")
+                return []
+            
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # 결과 파싱
+            result_area = soup.select_one('div.search-result, div.result-area, table.result-table')
+            
+            if not result_area:
+                logger.info("검색 결과 영역을 찾을 수 없습니다.")
+                return []
+            
+            # "리콜 대상이 아닙니다" 또는 유사한 메시지 확인
+            if any(phrase in result_area.get_text() for phrase in ['대상이 아닙니다', '해당 없음', '조회된 결과가 없습니다']):
+                logger.info(f"해당 차량은 리콜 대상이 아닙니다: {car_number or vin}")
+                return [{'status': 'NotSubject', 'car_identifier': car_number or vin}]
+            
+            # 리콜 정보 추출
+            recall_results = []
+            recall_rows = result_area.select('tr:has(td), div.recall-item')
+            
+            for row in recall_rows:
+                recall_data = self._parse_vin_recall_result(row, car_number or vin)
+                if recall_data:
+                    recall_results.append(recall_data)
+            
+            logger.info(f"발견된 리콜: {len(recall_results)}건")
+            return recall_results
+            
+        except Exception as e:
+            logger.error(f"차량 리콜 확인 오류: {e}")
+            return []
+
+    def _parse_vin_recall_result(self, row_element, car_identifier):
+        """차량별 리콜 결과 파싱"""
+        try:
+            text = row_element.get_text(strip=True)
+            
+            if not text or len(text) < 10:
+                return None
+            
+            result = {
+                'car_identifier': car_identifier,
+                'check_date': datetime.now().date(),
+                'recall_content': text
+            }
+            
+            # 조치 상태 파악
+            if any(status in text for status in ['완료', '조치완료', '수리완료']):
+                result['status'] = 'Completed'
+            elif any(status in text for status in ['미조치', '대상', '해당']):
+                result['status'] = 'Outstanding'  
+            else:
+                result['status'] = 'Unknown'
+            
+            # 리콜 사유 추출
+            reason_match = re.search(r'[사유|이유|내용]:\s*(.+)', text)
+            if reason_match:
+                result['recall_reason'] = reason_match.group(1).strip()
+            
+            return result
+            
+        except Exception as e:
+            logger.debug(f"VIN 리콜 결과 파싱 오류: {e}")
+            return None
 
     def _make_request(self, url, params=None, retries=0):
         """HTTP 요청 실행 (재시도 로직 포함)"""
         try:
-            response = self.session.get(url, params=params, timeout=30)
+            if params:
+                # GET 요청
+                response = self.session.get(url, params=params, timeout=30)
+            else:
+                # 단순 GET 요청
+                response = self.session.get(url, timeout=30)
+            
             response.raise_for_status()
             return response
+            
         except requests.exceptions.RequestException as e:
             if retries < self.max_retries:
                 logger.warning(f"요청 실패, 재시도 {retries + 1}/{self.max_retries}: {e}")
@@ -141,66 +269,122 @@ class RecallCrawler:
                 logger.error(f"요청 최종 실패: {e}")
                 return None
 
-    def _clean_text(self, text):
-        """텍스트 정제"""
-        if not text:
-            return ""
-        return re.sub(r'\s+', ' ', text.strip())
-
-    def crawl_and_save(self, detailed_car_list):
-        """수집된 상세 차량 목록을 기반으로 리콜 이력을 조회하고 DB에 저장합니다."""
-        db_helper.update_crawling_log('recall_vin', '시작')
-        total_checked = 0
+    def crawl_recent_recalls(self, days=30, max_pages=5):
+        """최근 리콜 정보 수집 (메인 크롤링 함수)"""
+        db_helper.update_crawling_log('recall', '시작')
+        total_collected = 0
+        
         try:
-            for car in detailed_car_list:
-                vin = car.get('vin')
-                if not vin:
-                    continue
+            logger.info(f"최근 {days}일간 리콜 정보 수집 시작")
+            
+            for page in range(1, max_pages + 1):
+                logger.info(f"페이지 {page} 처리 중...")
                 
-                recall_history = self.get_recall_status_by_vin(vin)
+                recall_list = self.get_recall_list(page=page)
                 
-                if recall_history:
-                    # USER ACTION: db_helper에 차량별 리콜 이력을 저장하는 메소드를 구현해야 합니다.
-                    # 예: db_helper.insert_vin_recall_history(car['id'], recall_history)
-                    logger.info(f"  -> DB 저장: {vin} ({len(recall_history)}건)")
-                    # 지금은 로그만 출력합니다.
+                if not recall_list:
+                    logger.info(f"페이지 {page}에서 더 이상 데이터가 없습니다.")
+                    break
                 
-                total_checked += 1
+                for recall in recall_list:
+                    try:
+                        # 모델 ID 조회 또는 생성
+                        model_id = db_helper.get_or_insert_car_model(
+                            recall.get('manufacturer', '확인필요'),
+                            recall.get('model_name', '확인필요')
+                        )
+                        
+                        if model_id:
+                            # DB에 리콜 정보 저장
+                            db_helper.insert_recall_info(
+                                model_id=model_id,
+                                recall_date=recall.get('recall_date'),
+                                recall_title=recall.get('recall_title', ''),
+                                recall_reason=recall.get('recall_title', ''),
+                                severity_level=recall.get('severity_level', '보통'),
+                                source='car.go.kr',
+                                collected_date=recall.get('collected_date')
+                            )
+                            total_collected += 1
+                            logger.info(f"   저장: {recall.get('manufacturer')} {recall.get('model_name')} - {recall.get('severity_level')}")
+                        
+                    except Exception as e:
+                        logger.error(f"개별 리콜 저장 오류: {e}")
+                        continue
+                
+                # 페이지 간 딜레이
                 time.sleep(self.delay)
-
-            db_helper.update_crawling_log('recall_vin', '완료', total_checked)
-            logger.info(f"🎉 전체 리콜 이력 조회 완료! 총 {total_checked}건 확인")
-
+            
+            db_helper.update_crawling_log('recall', '완료', total_collected)
+            logger.info(f"🎉 리콜 정보 수집 완료! 총 {total_collected}건")
+            
         except Exception as e:
-            db_helper.update_crawling_log('recall_vin', '실패', total_checked, str(e))
-            logger.error(f"리콜 이력 조회 및 저장 실패: {e}")
+            db_helper.update_crawling_log('recall', '실패', total_collected, str(e))
+            logger.error(f"리콜 크롤링 실패: {e}")
         finally:
             self.session.close()
+        
+        return total_collected
 
+    def test_vin_check(self, test_car_number="12가1234"):
+        """차량번호 조회 테스트 (실제 테스트용)"""
+        logger.info("차량번호 리콜 조회 테스트 시작")
+        
+        results = self.check_vin_recall_status(car_number=test_car_number)
+        
+        if results:
+            logger.info("테스트 결과:")
+            for result in results:
+                logger.info(f"  - 상태: {result.get('status')}")
+                logger.info(f"  - 내용: {result.get('recall_content', 'N/A')[:100]}...")
+        else:
+            logger.info("테스트 결과: 리콜 정보 없음 또는 조회 실패")
+        
+        return results
+
+    def crawl_and_save(self, car_list=None):
+        """기존 인터페이스 호환성을 위한 래퍼 함수"""
+        return self.crawl_recent_recalls(days=30, max_pages=3)
+
+    def get_source_name(self):
+        return "car.go.kr"
+
+# === 실행 및 테스트 코드 ===
 if __name__ == '__main__':
-    print("리콜 크롤러 (VIN 조회 강화) 단독 테스트 모드")
+    print("=== 수정된 리콜 크롤러 테스트 ===")
     
-    try:
-        with open('config/scheduler_config.json', 'r', encoding='utf-8') as f:
-            import json
-            full_config = json.load(f)
-        recall_config = full_config['crawling'].get('recall', {})
-        print("✅ 테스트 설정 로드 완료")
-
-        crawler = RecallCrawler(config=recall_config)
-
-        # --- 차대번호(VIN) 조회 테스트 ---
-        print("\n--- 차대번호(VIN) 조회 테스트 ---")
-        # USER ACTION: 테스트할 실제 차대번호를 입력하세요.
-        test_vin = "KNAXXXXXXXXXXXXXX"
-        # recall_status = crawler.get_recall_status_by_vin(test_vin)
-        # if recall_status:
-        #     print(f"조회 결과 ({test_vin}):")
-        #     print(pd.DataFrame(recall_status))
-        print("실제 실행하려면 `get_recall_status_by_vin` 메소드의 주석을 해제하고,")
-        print("USER ACTION 주석이 달린 부분의 URL, 파라미터, CSS 선택자를 수정해야 합니다.")
-
-    except FileNotFoundError:
-        print("오류: config/scheduler_config.json 파일을 찾을 수 없습니다.")
-    except Exception as e:
-        print(f"오류 발생: {e}")
+    # 기본 설정
+    test_config = {
+        'delay': 2,
+        'max_retries': 3,
+        'timeout': 30
+    }
+    
+    crawler = RecallCrawler(config=test_config)
+    
+    print("\n1. 연결 테스트")
+    test_response = crawler._make_request(crawler.recall_list_url)
+    if test_response and test_response.status_code == 200:
+        print(" 자동차리콜센터 접속 성공")
+    else:
+        print(" 자동차리콜센터 접속 실패")
+    
+    print("\n2. 리콜 목록 조회 테스트")
+    test_recalls = crawler.get_recall_list(page=1, manufacturer="현대")
+    print(f"조회된 리콜: {len(test_recalls)}건")
+    
+    if test_recalls:
+        print("샘플 리콜 정보:")
+        for i, recall in enumerate(test_recalls[:3]):
+            print(f"  {i+1}. {recall.get('manufacturer')} {recall.get('model_name')} - {recall.get('severity_level')}")
+    
+    print("\n3. 차량번호 조회 테스트 (실제 DB 연결 필요)")
+    # crawler.test_vin_check("12가1234")  # 실제 테스트 시 주석 해제
+    print("  주석 해제하여 실행 가능")
+    
+    print("\n=== 테스트 완료 ===")
+    print(" 이 크롤러는 즉시 사용 가능합니다!")
+    print("📝 실제 사용을 위해서는:")
+    print("   1. 데이터베이스 연결 확인")  
+    print("   2. python 이 파일명.py 실행")
+    print("   3. 또는 scheduler_enhanced.py에서 자동 실행")

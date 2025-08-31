@@ -14,9 +14,9 @@ from email.mime.text import MimeText
 from email.mime.multipart import MimeMultipart
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-# from crawlers.encar_crawler import EncarCrawler
-# from crawlers.recall_crawler import RecallCrawler
-# from crawlers.public_data_crawler import PublicDataCrawler
+from crawlers.kcar_crawler import KCarCrawler
+from crawlers.recall_crawler import RecallCrawler
+from crawlers.public_data_crawler import PublicDataCrawler
 from config.config import POPULAR_MODELS
 
 # Logging configuration
@@ -43,26 +43,26 @@ class EnhancedDataScheduler:
 
         # 설정에 기반하여 크롤러 인스턴스 생성
         crawling_config = self.config.get('crawling', {})
-        # self.encar_crawler = EncarCrawler(config=crawling_config.get('encar', {}))
-        # self.recall_crawler = RecallCrawler(config=crawling_config.get('recall', {}))
-        # self.public_crawler = PublicDataCrawler(config=crawling_config.get('public_data', {}))
-        logger.info("WARNING: Crawlers are temporarily disabled.")
+        self.kcar_crawler = KCarCrawler(config=crawling_config.get('kcar', crawling_config.get('encar', {})))
+        self.recall_crawler = RecallCrawler(config=crawling_config.get('recall', {}))
+        self.public_crawler = PublicDataCrawler(config=crawling_config.get('public_data', {}))
+        logger.info(" 모든 크롤러가 초기화되었습니다.")
         
     def _load_config(self, config_path):
         """Load configuration file"""
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
                 config = json.load(f)
-                logger.info(f"✅ 설정 파일 로드: {config_path}")
+                logger.info(f" 설정 파일 로드: {config_path}")
                 return config
         except FileNotFoundError:
-            logger.error(f"❌ 설정 파일을 찾을 수 없습니다: {config_path}")
+            logger.error(f"[ERROR] 설정 파일을 찾을 수 없습니다: {config_path}")
             sys.exit(1)
         except json.JSONDecodeError:
-            logger.error(f"❌ 설정 파일이 유효한 JSON 형식이 아닙니다: {config_path}")
+            logger.error(f"[ERROR] 설정 파일이 유효한 JSON 형식이 아닙니다: {config_path}")
             sys.exit(1)
         except Exception as e:
-            logger.error(f"❌ 설정 파일 로드 중 오류 발생: {e}")
+            logger.error(f"[ERROR] 설정 파일 로드 중 오류 발생: {e}")
             sys.exit(1)
 
     def check_system_resources(self):
@@ -81,7 +81,7 @@ class EnhancedDataScheduler:
                 'disk_free': disk.free // (1024**3)  # GB
             }
             
-            logger.info(f"💻 시스템 리소스: CPU {cpu_percent}%, RAM {memory.percent}%, Disk {disk.percent}%")
+            logger.info(f"[SYSTEM] 시스템 리소스: CPU {cpu_percent}%, RAM {memory.percent}%, Disk {disk.percent}%")
             
             # 리소스 부족 경고 (설정 파일 기준)
             if cpu_percent > limits.get('max_cpu_percent', 80):
@@ -195,7 +195,7 @@ class EnhancedDataScheduler:
     def daily_price_update(self):
         """일일 가격 업데이트"""
         start_time = datetime.now()
-        logger.info("🌙 일일 가격 업데이트 시작...")
+        logger.info(" 일일 가격 업데이트 시작...")
         
         resources = self.check_system_resources()
         
@@ -204,15 +204,15 @@ class EnhancedDataScheduler:
             
             
             
-            # self.retry_with_backoff(lambda: self.encar_crawler.crawl_and_save(car_list))
-            logger.info("⚠️  엔카 크롤링이 일시적으로 비활성화되었습니다.")
+            collected = self.retry_with_backoff(lambda: self.kcar_crawler.crawl_and_save(car_list))
+            logger.info(f" K카 크롤링 완료: {collected}건 수집")
             
             duration = (datetime.now() - start_time).total_seconds()
             
             from database.db_helper import db_helper
-            recent_log = db_helper.execute_query("SELECT records_collected FROM CrawlingLog WHERE source = 'encar' ORDER BY started_at DESC LIMIT 1")
-            records_collected = recent_log[0]['records_collected'] if recent_log else 0
-            self.validate_collected_data('encar', records_collected)
+            recent_log = db_helper.execute_query("SELECT records_collected FROM CrawlingLog WHERE source = 'kcar' ORDER BY started_at DESC LIMIT 1")
+            records_collected = recent_log[0]['records_collected'] if recent_log else collected or 0
+            self.validate_collected_data('kcar', records_collected)
             
             self.stats['successful_runs'] += 1
             if self.config.get('scheduler', {}).get('enable_performance_monitoring', True):
@@ -221,11 +221,11 @@ class EnhancedDataScheduler:
                     'timestamp': start_time.isoformat(), 'resources': resources
                 })
             
-            logger.info(f"✅ 일일 가격 업데이트 완료 (소요시간: {duration:.1f}초)")
+            logger.info(f" 일일 가격 업데이트 완료 (소요시간: {duration:.1f}초)")
             
         except Exception as e:
             self.stats['failed_runs'] += 1
-            logger.error(f"❌ 가격 업데이트 실패: {e}")
+            logger.error(f"[ERROR] 가격 업데이트 실패: {e}")
             if self.config.get('email', {}).get('send_error_alerts', True):
                 self.send_email_notification("가격 업데이트 실패", f"시간: {start_time}\n오류: {str(e)}\n\n확인이 필요합니다.")
         finally:
@@ -242,8 +242,8 @@ class EnhancedDataScheduler:
             models_df = db_helper.get_car_models()
             car_list = [{'manufacturer': r['manufacturer'], 'model_name': r['model_name']} for i, r in models_df.iterrows()]
             
-            # self.retry_with_backoff(lambda: self.recall_crawler.crawl_and_save(car_list))
-            logger.info("⚠️  리콜 크롤링이 일시적으로 비활성화되었습니다.")
+            recall_collected = self.retry_with_backoff(lambda: self.recall_crawler.crawl_and_save(car_list))
+            logger.info(f" 리콜 정보 크롤링 완료: {recall_collected}건 수집")
             
             keywords = self.config.get('alerts', {}).get('critical_recall_keywords', ['화재', '브레이크'])
             placeholders = ','.join(['%s'] * len(keywords))
@@ -259,30 +259,31 @@ class EnhancedDataScheduler:
                     self.send_email_notification(f"심각한 리콜 {count}건 발생", f"최근 일주일간 심각도가 높은 리콜이 {count}건 발생했습니다.\n시스템에서 확인해주세요.")
             
             duration = (datetime.now() - start_time).total_seconds()
-            logger.info(f"✅ 리콜 정보 업데이트 완료 (소요시간: {duration:.1f}초)")
+            logger.info(f" 리콜 정보 업데이트 완료 (소요시간: {duration:.1f}초)")
             
         except Exception as e:
-            logger.error(f"❌ 리콜 업데이트 실패: {e}")
+            logger.error(f"[ERROR] 리콜 업데이트 실패: {e}")
 
     def monthly_registration_update(self):
         """월간 등록 현황 업데이트"""
         logger.info(" 월간 등록 현황 업데이트 시작...")
         try:
             def registration_task():
-                # df = self.public_crawler.load_registration_data()
-                # if not df.empty:
-                #     self.public_crawler.save_to_database(df)
-                #     return len(df)
-                logger.info("⚠️  공공데이터 크롤링이 일시적으로 비활성화되었습니다.")
-                return 0
+                try:
+                    collected = self.public_crawler.crawl_and_save()
+                    logger.info(f" 공공데이터 크롤링 완료: {collected}건 수집")
+                    return collected
+                except Exception as e:
+                    logger.error(f"공공데이터 크롤링 오류: {e}")
+                    return 0
             
             records_count = self.retry_with_backoff(registration_task)
             if records_count > 0:
-                logger.info(f"✅ 등록 현황 업데이트 완료 ({records_count}건)")
+                logger.info(f" 등록 현황 업데이트 완료 ({records_count}건)")
             else:
                 logger.warning("등록 현황 데이터 파일을 찾을 수 없습니다.")
         except Exception as e:
-            logger.error(f"❌ 등록 현황 업데이트 실패: {e}")
+            logger.error(f"[ERROR] 등록 현황 업데이트 실패: {e}")
 
     def enhanced_health_check(self):
         """향상된 시스템 상태 체크"""
@@ -293,7 +294,7 @@ class EnhancedDataScheduler:
             from database.db_helper import db_helper
             with db_helper.get_db_connection():
                 health_status['database'] = True
-            logger.info("✅ 데이터베이스 연결 정상")
+            logger.info(" 데이터베이스 연결 정상")
             
             resources = self.check_system_resources()
             if resources:
@@ -323,7 +324,7 @@ class EnhancedDataScheduler:
                 self.send_email_notification(f"시스템 건강도 저하 ({health_score:.0f}%)", f"시스템 상태를 확인해주세요.\n\n상태 정보:\n{json.dumps(health_status, indent=2, ensure_ascii=False)}")
             
         except Exception as e:
-            logger.error(f"❌ 건강 상태 체크 실패: {e}")
+            logger.error(f"[ERROR] 건강 상태 체크 실패: {e}")
 
     def cleanup_old_data_enhanced(self):
         """향상된 오래된 데이터 정리"""
@@ -334,14 +335,14 @@ class EnhancedDataScheduler:
             
             price_days = retention_conf.get('price_data_days', 30)
             deleted_prices = db_helper.execute_query(f"DELETE FROM UsedCarPrice WHERE collected_date < DATE_SUB(CURDATE(), INTERVAL {price_days} DAY)", fetch=False)
-            logger.info(f"✅ {price_days}일 이상된 가격 데이터 {deleted_prices}건 정리")
+            logger.info(f" {price_days}일 이상된 가격 데이터 {deleted_prices}건 정리")
             
             log_days = retention_conf.get('log_data_days', 90)
             deleted_logs = db_helper.execute_query(f"DELETE FROM CrawlingLog WHERE started_at < DATE_SUB(NOW(), INTERVAL {log_days} DAY)", fetch=False)
-            logger.info(f"✅ {log_days}일 이상된 로그 {deleted_logs}건 정리")
+            logger.info(f" {log_days}일 이상된 로그 {deleted_logs}건 정리")
             
         except Exception as e:
-            logger.error(f"❌ 데이터 정리 실패: {e}")
+            logger.error(f"[ERROR] 데이터 정리 실패: {e}")
 
     def generate_daily_report(self):
         """일일 리포트 생성"""
@@ -364,7 +365,7 @@ class EnhancedDataScheduler:
         schedule.every().day.at("05:00").do(self._check_monthly_task)
         schedule.every().hour.do(self.enhanced_health_check)
         
-        logger.info("✅ 스케줄 설정 완료")
+        logger.info(" 스케줄 설정 완료")
 
     def _check_monthly_task(self):
         if datetime.now().day == 1:
