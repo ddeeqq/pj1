@@ -1,11 +1,15 @@
 """
-공공데이터 포털에서 자동차 등록 현황 데이터 수집
+공공데이터 및 외부 데이터 수집기
+- (기존) 자동차 등록 현황 데이터 수집
+- (추가) 신차 출고가(MSRP) 정보 수집
 """
 import pandas as pd
 import logging
 from datetime import datetime
 import sys
 import os
+import requests
+import json
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from database.db_helper import db_helper
@@ -17,11 +21,55 @@ class PublicDataCrawler:
     def __init__(self, config):
         """크롤러 초기화 시 설정(config)을 전달받음"""
         self.config = config
+        self.session = requests.Session()
+        self.session.headers.update({
+            'User-Agent': self.config.get('user_agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
+        })
+
+    # --- 신차 출고가(MSRP) 수집 기능 ---
+    def get_new_car_msrp(self, model_id, manufacturer, model_name, year, trim_name):
+        """특정 모델, 연식, 트림에 해당하는 신차의 공식 출고가(MSRP)를 가져옵니다."""
         
+        # USER ACTION: 신차 가격 정보를 제공하는 API나 웹사이트 URL을 입력해주세요.
+        # 현대/기아차의 경우, 자체적으로 가격표 API를 제공할 수 있습니다.
+        # 또는 다나와 자동차, 네이버 자동차 등의 제3자 사이트를 활용할 수 있습니다.
+        # 아래는 예시적인 API URL 구조입니다.
+        api_url_template = self.config.get(
+            'msrp_api_url', 
+            'https://api.example.com/new-car-prices?manufacturer={mf}&model={mo}&year={yr}&trim={tr}'
+        )
+        url = api_url_template.format(mf=manufacturer, mo=model_name, yr=year, tr=trim_name)
+
+        try:
+            logger.info(f"MSRP 조회: {manufacturer} {model_name} {year} {trim_name}")
+            response = self.session.get(url, timeout=10)
+            response.raise_for_status()
+            
+            # USER ACTION: API 응답 형식(JSON, XML, HTML 등)에 맞게 파싱 로직을 수정해야 합니다.
+            # 아래는 JSON 응답을 가정합니다.
+            data = response.json()
+            msrp = data.get('price') # 예: {"price": 55000000}
+
+            if msrp:
+                logger.info(f"  -> MSRP 발견: {msrp}")
+                # USER ACTION: db_helper에 신차 가격 정보를 저장하는 메소드를 구현해야 합니다.
+                # 예: db_helper.insert_or_update_msrp(model_id, year, trim_name, msrp)
+                return msrp
+            else:
+                logger.warning(f"  -> MSRP 정보를 찾을 수 없음")
+                return None
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"MSRP API 요청 실패: {e}")
+            return None
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.error(f"MSRP API 응답 파싱 실패: {e}")
+            return None
+
+    # --- 기존 자동차 등록 현황 데이터 수집 기능 ---
     def load_registration_data(self, file_path=None):
         """엑셀 파일에서 자동차 등록 현황 데이터 로드"""
         try:
-            # 파일 경로가 없으면 설정의 기본 경로 사용
             if not file_path:
                 file_path = self.config.get('file_path')
                 if not file_path:
@@ -49,8 +97,7 @@ class PublicDataCrawler:
                 
         except FileNotFoundError:
             logger.error(f"파일을 찾을 수 없습니다: {file_path}")
-            logger.info("샘플 데이터를 생성합니다...")
-            return self._create_sample_registration_data()
+            return pd.DataFrame()
         except Exception as e:
             logger.error(f"데이터 로드 실패: {e}")
             return pd.DataFrame()
@@ -88,20 +135,7 @@ class PublicDataCrawler:
             logger.error(f"데이터 정제 실패: {e}")
             return pd.DataFrame()
             
-    def _create_sample_registration_data(self):
-        """샘플 등록 데이터 생성"""
-        sample_data = {
-            'manufacturer': ['현대', '기아', '제네시스'] * 2,
-            'model_name': ['그랜저', '쏘나타', '아반떼', 'K5', 'K8', 'G80'],
-            'region': ['서울', '경기', '부산', '대구', '인천', '광주'],
-            'registration_count': [1250, 2340, 890, 1560, 780, 450],
-            'registration_date': [datetime.now().date()] * 6
-        }
-        df = pd.DataFrame(sample_data)
-        logger.info("✅ 샘플 데이터 생성 완료")
-        return df
-        
-    def save_to_database(self, df):
+    def save_registration_data_to_db(self, df):
         """데이터프레임을 데이터베이스에 저장"""
         db_helper.update_crawling_log('public_data', '시작')
         saved_count = 0
@@ -135,13 +169,21 @@ if __name__ == '__main__':
         print("✅ 테스트 설정 로드 완료")
 
         crawler = PublicDataCrawler(config=public_data_config)
+
+        # --- 신차 가격 조회 테스트 ---
+        print("\n--- 신차 가격(MSRP) 조회 테스트 ---")
+        # test_msrp = crawler.get_new_car_msrp(1, '현대', '그랜저 IG', 2022, '2.4 프리미엄')
+        # if test_msrp:
+        #     print(f"테스트 MSRP 결과: {test_msrp}")
+        print("실제 실행하려면 `get_new_car_msrp` 메소드의 주석을 해제하고, API URL과 파싱 로직을 수정해야 합니다.")
+
+        # --- 기존 등록 데이터 로드 테스트 ---
+        print("\n--- 자동차 등록 데이터 로드 테스트 ---")
         df = crawler.load_registration_data()
-        
         if not df.empty:
             print(f"로드된 데이터 수: {len(df)}건")
-            print("\n데이터 미리보기:")
             print(df.head())
-            # crawler.save_to_database(df)
+            # crawler.save_registration_data_to_db(df)
         else:
             print("❌ 데이터 로드 실패")
 
